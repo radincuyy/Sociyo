@@ -20,6 +20,7 @@ export type MainDrawerParamList = {
 };
 
 export type RootStackParamList = {
+  Boot: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   Main: NavigatorScreenParams<MainDrawerParamList> | undefined;
   PostDetail: { postId: string };

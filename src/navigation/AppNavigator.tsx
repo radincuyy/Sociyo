@@ -9,6 +9,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Bell, Home, ListVideo, PlusCircle, Search, Settings, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -36,6 +37,18 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
+
+function BootScreen() {
+  const mode = useThemeStore((state) => state.mode);
+  const palette = colors[mode];
+
+  return (
+    <View style={[styles.bootScreen, { backgroundColor: palette.background }]}>
+      <ActivityIndicator color={palette.primary} size="large" />
+      <Text style={[styles.bootText, { color: palette.textMuted }]}>Menyiapkan sesi...</Text>
+    </View>
+  );
+}
 
 function AuthNavigator() {
   return (
@@ -133,6 +146,7 @@ function MainDrawer() {
 
 export function AppNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
 
@@ -155,7 +169,9 @@ export function AppNavigator() {
   return (
     <NavigationContainer theme={navigationTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
+        {isInitializing ? (
+          <RootStack.Screen name="Boot" component={BootScreen} />
+        ) : isAuthenticated ? (
           <>
             <RootStack.Screen name="Main" component={MainDrawer} />
             <RootStack.Screen name="PostDetail" component={PostDetailScreen} />
@@ -169,3 +185,16 @@ export function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  bootScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  bootText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+});

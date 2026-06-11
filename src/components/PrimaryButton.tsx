@@ -7,9 +7,15 @@ import { colors } from '../theme/colors';
 type PrimaryButtonProps = PropsWithChildren<{
   onPress: () => void;
   variant?: 'primary' | 'ghost';
+  disabled?: boolean;
 }>;
 
-export function PrimaryButton({ children, onPress, variant = 'primary' }: PrimaryButtonProps) {
+export function PrimaryButton({
+  children,
+  onPress,
+  variant = 'primary',
+  disabled = false,
+}: PrimaryButtonProps) {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
   const isGhost = variant === 'ghost';
@@ -17,11 +23,12 @@ export function PrimaryButton({ children, onPress, variant = 'primary' }: Primar
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
         {
           backgroundColor: isGhost ? palette.surfaceMuted : palette.primary,
-          opacity: pressed ? 0.82 : 1,
+          opacity: disabled ? 0.55 : pressed ? 0.82 : 1,
         },
       ]}
     >
