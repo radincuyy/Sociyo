@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ArrowRight } from 'lucide-react-native';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
@@ -13,9 +13,21 @@ import type { AuthStackParamList } from '../../types/navigation';
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: LoginScreenProps) {
-  const loginWithDemo = useAuthStore((state) => state.loginWithDemo);
+  const login = useAuthStore((state) => state.login);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const clearError = useAuthStore((state) => state.clearError);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+
+  const handleLogin = async () => {
+    if (!canSubmit) return;
+    await login(email, password);
+  };
 
   return (
     <Screen>
@@ -34,7 +46,7 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             Social experience yang terasa hidup sejak sentuhan pertama.
           </Text>
           <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-            Starter Minggu 13: auth flow, navigasi, struktur app, dan fondasi animasi.
+            Masuk dengan akun Firebase untuk lanjut ke feed dan fitur sosial.
           </Text>
         </View>
 
@@ -44,6 +56,11 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             placeholderTextColor={palette.textMuted}
             autoCapitalize="none"
             keyboardType="email-address"
+            value={email}
+            onChangeText={(value) => {
+              clearError();
+              setEmail(value);
+            }}
             style={[
               styles.input,
               { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text },
@@ -53,13 +70,19 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
             placeholder="Password"
             placeholderTextColor={palette.textMuted}
             secureTextEntry
+            value={password}
+            onChangeText={(value) => {
+              clearError();
+              setPassword(value);
+            }}
             style={[
               styles.input,
               { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text },
             ]}
           />
-          <PrimaryButton onPress={loginWithDemo}>
-            Masuk demo <ArrowRight size={16} color="#FFFFFF" />
+          {error ? <Text style={[styles.error, { color: palette.accent }]}>{error}</Text> : null}
+          <PrimaryButton onPress={handleLogin} disabled={!canSubmit}>
+            {isLoading ? 'Memproses...' : 'Masuk'}
           </PrimaryButton>
           <PrimaryButton variant="ghost" onPress={() => navigation.navigate('Register')}>
             Buat akun
@@ -111,5 +134,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 15,
+  },
+  error: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

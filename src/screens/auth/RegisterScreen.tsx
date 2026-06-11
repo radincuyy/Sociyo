@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
@@ -11,9 +12,63 @@ import type { AuthStackParamList } from '../../types/navigation';
 type RegisterScreenProps = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export function RegisterScreen({ navigation }: RegisterScreenProps) {
-  const loginWithDemo = useAuthStore((state) => state.loginWithDemo);
+  const register = useAuthStore((state) => state.register);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const clearError = useAuthStore((state) => state.clearError);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const fields = [
+    {
+      placeholder: 'Nama lengkap',
+      value: displayName,
+      onChangeText: setDisplayName,
+      secureTextEntry: false,
+      keyboardType: 'default' as const,
+      autoCapitalize: 'words' as const,
+    },
+    {
+      placeholder: 'Username',
+      value: username,
+      onChangeText: setUsername,
+      secureTextEntry: false,
+      keyboardType: 'default' as const,
+      autoCapitalize: 'none' as const,
+    },
+    {
+      placeholder: 'Email',
+      value: email,
+      onChangeText: setEmail,
+      secureTextEntry: false,
+      keyboardType: 'email-address' as const,
+      autoCapitalize: 'none' as const,
+    },
+    {
+      placeholder: 'Password',
+      value: password,
+      onChangeText: setPassword,
+      secureTextEntry: true,
+      keyboardType: 'default' as const,
+      autoCapitalize: 'none' as const,
+    },
+  ];
+
+  const canSubmit =
+    displayName.trim().length > 0 &&
+    username.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length >= 6 &&
+    !isLoading;
+
+  const handleRegister = async () => {
+    if (!canSubmit) return;
+    await register({ displayName, username, email, password });
+  };
 
   return (
     <Screen>
@@ -21,24 +76,33 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
         <View style={styles.copy}>
           <Text style={[styles.title, { color: palette.text }]}>Buat profil awal</Text>
           <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-            Nanti form ini disambungkan ke Firebase Authentication dan profile CRUD.
+            Akun dibuat di Firebase Authentication, lalu profil awal disimpan ke Firestore.
           </Text>
         </View>
         <View style={styles.form}>
-          {['Nama lengkap', 'Username', 'Email', 'Password'].map((placeholder) => (
+          {fields.map((field) => (
             <TextInput
-              key={placeholder}
-              placeholder={placeholder}
+              key={field.placeholder}
+              placeholder={field.placeholder}
               placeholderTextColor={palette.textMuted}
-              secureTextEntry={placeholder === 'Password'}
-              autoCapitalize={placeholder === 'Email' ? 'none' : 'sentences'}
+              value={field.value}
+              secureTextEntry={field.secureTextEntry}
+              keyboardType={field.keyboardType}
+              autoCapitalize={field.autoCapitalize}
+              onChangeText={(value) => {
+                clearError();
+                field.onChangeText(value);
+              }}
               style={[
                 styles.input,
                 { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text },
               ]}
             />
           ))}
-          <PrimaryButton onPress={loginWithDemo}>Daftar demo</PrimaryButton>
+          {error ? <Text style={[styles.error, { color: palette.accent }]}>{error}</Text> : null}
+          <PrimaryButton onPress={handleRegister} disabled={!canSubmit}>
+            {isLoading ? 'Memproses...' : 'Daftar'}
+          </PrimaryButton>
           <PrimaryButton variant="ghost" onPress={() => navigation.goBack()}>
             Kembali login
           </PrimaryButton>
@@ -74,5 +138,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 15,
+  },
+  error: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
