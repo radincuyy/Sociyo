@@ -12,7 +12,7 @@ const checklist = [
   'React Navigation Stack + Tab + Drawer installed',
   'Zustand store ready',
   'Reanimated + Gesture Handler ready',
-  'Firebase placeholder ready',
+  'Firebase config ready',
 ];
 
 export function SettingsScreen() {

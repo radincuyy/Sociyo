@@ -1,8 +1,7 @@
 import { Search } from 'lucide-react-native';
-import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
-import { posts } from '../../data/mockData';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 
@@ -26,19 +25,17 @@ export function SearchScreen() {
           style={[styles.input, { color: palette.text }]}
         />
       </View>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={[styles.result, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={[styles.resultTitle, { color: palette.text }]}>{item.author}</Text>
-            <Text numberOfLines={2} style={[styles.resultCopy, { color: palette.textMuted }]}>
-              {item.caption}
-            </Text>
-          </View>
-        )}
-      />
+      <View
+        style={[
+          styles.emptyCard,
+          { backgroundColor: palette.surface, borderColor: palette.border },
+        ]}
+      >
+        <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada hasil</Text>
+        <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
+          Data user dan konten akan muncul setelah search terhubung ke Firebase.
+        </Text>
+      </View>
     </Screen>
   );
 }
@@ -63,22 +60,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
-  list: {
-    gap: 10,
-    paddingVertical: 16,
-  },
-  result: {
+  emptyCard: {
+    marginTop: 16,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 14,
-    gap: 6,
+    padding: 18,
+    alignItems: 'center',
   },
-  resultTitle: {
-    fontSize: 15,
+  emptyTitle: {
+    fontSize: 17,
     fontWeight: '900',
   },
-  resultCopy: {
-    fontSize: 13,
-    lineHeight: 19,
+  emptyCopy: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

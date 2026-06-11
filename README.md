@@ -7,7 +7,7 @@ Fokus project: social media app React Native + Expo dengan pendekatan animations
 
 - Expo SDK 56 + React Native
 - TypeScript
-- React Navigation v6: Stack, Bottom Tab, Drawer
+- React Navigation v7: Stack, Bottom Tab, Drawer
 - Zustand
 - Firebase Web SDK
 - React Native Reanimated + Gesture Handler
@@ -44,6 +44,6 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 - Project Expo sudah dibuat.
 - Struktur folder `src` sudah disiapkan.
 - Navigasi Stack + Tab + Drawer sudah tersedia.
-- Auth screen demo sudah tersedia.
+- Auth Firebase sudah tersedia untuk login, register, dan sesi user.
 - Feed, story, profile, search, create post, notifications, settings sudah berupa skeleton.
 - Reanimated dan Gesture Handler sudah mulai dipakai untuk katalog animasi awal.

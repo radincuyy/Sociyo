@@ -1,33 +1,13 @@
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
 import { Menu } from 'lucide-react-native';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedPostCard } from '../../components/AnimatedPostCard';
 import { Screen } from '../../components/Screen';
-import { StoryBubble } from '../../components/StoryBubble';
-import { posts, stories, type Post } from '../../data/mockData';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
-import type { RootStackParamList } from '../../types/navigation';
-
-type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
 export function FeedScreen() {
-  const navigation = useNavigation<RootNavigation>();
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
-
-  const renderPost = ({ item, index }: { item: Post; index: number }) => (
-    <AnimatedPostCard
-      post={item}
-      index={index}
-      onOpen={() => navigation.navigate('PostDetail', { postId: item.id })}
-      onPhotoOpen={() =>
-        navigation.navigate('PhotoViewer', { imageUrl: item.imageUrl, alt: item.caption })
-      }
-    />
-  );
 
   return (
     <Screen padded={false}>
@@ -39,30 +19,19 @@ export function FeedScreen() {
         <View style={styles.iconButton} />
       </View>
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <View style={styles.stories}>
-            <FlatList
-              horizontal
-              data={stories}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.storyList}
-              renderItem={({ item }) => (
-                <StoryBubble
-                  story={item}
-                  onPress={() => navigation.navigate('StoryViewer', { storyId: item.id })}
-                />
-              )}
-            />
-          </View>
-        }
-      />
+      <View style={styles.emptyWrap}>
+        <View
+          style={[
+            styles.emptyCard,
+            { backgroundColor: palette.surface, borderColor: palette.border },
+          ]}
+        >
+          <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada postingan</Text>
+          <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
+            Feed akan tampil setelah data post disambungkan ke Firebase.
+          </Text>
+        </View>
+      </View>
     </Screen>
   );
 }
@@ -86,15 +55,26 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  list: {
-    paddingHorizontal: 14,
-    paddingBottom: 24,
+  emptyWrap: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
   },
-  stories: {
-    paddingVertical: 16,
+  emptyCard: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 18,
+    alignItems: 'center',
   },
-  storyList: {
-    gap: 10,
-    paddingRight: 12,
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  emptyCopy: {
+    marginTop: 8,
+    maxWidth: 280,
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

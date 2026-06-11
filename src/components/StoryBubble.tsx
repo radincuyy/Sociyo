@@ -10,9 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
 
-import type { Story } from '../data/mockData';
 import { useThemeStore } from '../store/useThemeStore';
 import { colors } from '../theme/colors';
+import type { Story } from '../types/social';
 
 type StoryBubbleProps = {
   story: Story;
@@ -23,6 +23,7 @@ export function StoryBubble({ story, onPress }: StoryBubbleProps) {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
   const rotation = useSharedValue(0);
+  const avatarInitial = story.author.trim().slice(0, 1).toUpperCase() || '?';
 
   useEffect(() => {
     if (!story.viewed) {
@@ -53,7 +54,13 @@ export function StoryBubble({ story, onPress }: StoryBubbleProps) {
         />
       </Animated.View>
       <View style={[styles.avatarFrame, { backgroundColor: palette.surface }]}>
-        <Image source={{ uri: story.avatarUrl }} style={styles.avatar} contentFit="cover" />
+        {story.avatarUrl ? (
+          <Image source={{ uri: story.avatarUrl }} style={styles.avatar} contentFit="cover" />
+        ) : (
+          <View style={[styles.avatarPlaceholder, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.avatarInitial, { color: palette.text }]}>{avatarInitial}</Text>
+          </View>
+        )}
       </View>
       <Text numberOfLines={1} style={[styles.name, { color: palette.text }]}>
         {story.author}
@@ -89,6 +96,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 27,
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: '900',
   },
   name: {
     width: 70,

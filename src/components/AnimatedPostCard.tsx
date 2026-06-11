@@ -14,9 +14,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { Post } from '../data/mockData';
 import { useThemeStore } from '../store/useThemeStore';
 import { colors } from '../theme/colors';
+import type { Post } from '../types/social';
 
 type AnimatedPostCardProps = {
   post: Post;
@@ -34,6 +34,8 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
   const heartScale = useSharedValue(1);
   const burst = useSharedValue(0);
   const countLift = useSharedValue(0);
+  const avatarInitial = post.author.trim().slice(0, 1).toUpperCase() || '?';
+  const meta = [post.location, post.createdAt].filter(Boolean).join(' - ');
 
   useEffect(() => {
     appear.value = withDelay(
@@ -109,17 +111,31 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
         ]}
       >
         <View style={styles.header}>
-          <Image source={{ uri: post.avatarUrl }} style={styles.avatar} contentFit="cover" />
+          {post.avatarUrl ? (
+            <Image source={{ uri: post.avatarUrl }} style={styles.avatar} contentFit="cover" />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: palette.surfaceMuted }]}>
+              <Text style={[styles.avatarInitial, { color: palette.text }]}>{avatarInitial}</Text>
+            </View>
+          )}
           <View style={styles.authorBlock}>
             <Text style={[styles.author, { color: palette.text }]}>{post.author}</Text>
             <Text style={[styles.meta, { color: palette.textMuted }]}>
-              {post.location} - {post.createdAt}
+              {meta}
             </Text>
           </View>
         </View>
 
-        <Pressable onPress={onPhotoOpen} style={styles.imageWrap}>
-          <Image source={{ uri: post.imageUrl }} style={styles.image} contentFit="cover" />
+        <Pressable onPress={post.imageUrl ? onPhotoOpen : undefined} style={styles.imageWrap}>
+          {post.imageUrl ? (
+            <Image source={{ uri: post.imageUrl }} style={styles.image} contentFit="cover" />
+          ) : (
+            <View style={[styles.imagePlaceholder, { backgroundColor: palette.surfaceMuted }]}>
+              <Text style={[styles.imagePlaceholderText, { color: palette.textMuted }]}>
+                Belum ada gambar
+              </Text>
+            </View>
+          )}
           <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]}>
             <Heart size={74} fill="#FFFFFF" color="#FFFFFF" />
           </Animated.View>
@@ -176,6 +192,17 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
   authorBlock: {
     flex: 1,
   },
@@ -193,6 +220,15 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePlaceholderText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   burst: {
     position: 'absolute',

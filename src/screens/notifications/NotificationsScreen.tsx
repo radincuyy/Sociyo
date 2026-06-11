@@ -5,12 +5,6 @@ import { Screen } from '../../components/Screen';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 
-const notifications = [
-  'Naya menyukai post kamu.',
-  'Bima mulai mengikuti kamu.',
-  'Checkpoint animasi Minggu 14: minimal 2 fitur unggulan selesai.',
-];
-
 export function NotificationsScreen() {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
@@ -18,16 +12,17 @@ export function NotificationsScreen() {
   return (
     <Screen>
       <Text style={[styles.title, { color: palette.text }]}>Notifications</Text>
-      <View style={styles.list}>
-        {notifications.map((notification) => (
-          <View
-            key={notification}
-            style={[styles.item, { backgroundColor: palette.surface, borderColor: palette.border }]}
-          >
-            <BellRing size={20} color={palette.primary} />
-            <Text style={[styles.copy, { color: palette.text }]}>{notification}</Text>
-          </View>
-        ))}
+      <View
+        style={[
+          styles.emptyCard,
+          { backgroundColor: palette.surface, borderColor: palette.border },
+        ]}
+      >
+        <BellRing size={24} color={palette.primary} />
+        <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada notifikasi</Text>
+        <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
+          Notifikasi akan muncul setelah aktivitas real user tersambung.
+        </Text>
       </View>
     </Screen>
   );
@@ -40,20 +35,20 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
   },
-  list: {
-    gap: 10,
-  },
-  item: {
-    minHeight: 62,
+  emptyCard: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
+    padding: 18,
     alignItems: 'center',
-    gap: 12,
   },
-  copy: {
-    flex: 1,
+  emptyTitle: {
+    marginTop: 10,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  emptyCopy: {
+    marginTop: 8,
+    textAlign: 'center',
     fontSize: 14,
     lineHeight: 20,
   },

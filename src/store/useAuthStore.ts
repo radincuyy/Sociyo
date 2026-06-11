@@ -15,7 +15,7 @@ export type SessionUser = {
   id: string;
   displayName: string;
   username: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
 };
 
 type AuthState = {
@@ -37,9 +37,6 @@ type RegisterInput = {
   email: string;
   password: string;
 };
-
-const fallbackAvatar =
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80';
 
 function normalizeUsername(username: string) {
   return username.trim().replace(/^@/, '').toLowerCase();
@@ -63,21 +60,22 @@ async function getSessionUser(firebaseUser: User): Promise<SessionUser> {
   const userRef = doc(firestore, 'users', firebaseUser.uid);
   const snapshot = await getDoc(userRef);
   const data = snapshot.data();
+  const storedAvatarUrl =
+    typeof data?.avatarUrl === 'string' && data.avatarUrl.trim().length > 0
+      ? data.avatarUrl
+      : null;
 
   return {
     id: firebaseUser.uid,
     displayName:
-      typeof data?.displayName === 'string'
+      typeof data?.displayName === 'string' && data.displayName.trim().length > 0
         ? data.displayName
-        : firebaseUser.displayName ?? 'AnimaVibe User',
+        : firebaseUser.displayName ?? firebaseUser.email ?? 'Pengguna',
     username:
-      typeof data?.username === 'string'
+      typeof data?.username === 'string' && data.username.trim().length > 0
         ? data.username
-        : firebaseUser.email?.split('@')[0] ?? 'animavibe.user',
-    avatarUrl:
-      typeof data?.avatarUrl === 'string'
-        ? data.avatarUrl
-        : firebaseUser.photoURL ?? fallbackAvatar,
+        : firebaseUser.email?.split('@')[0] ?? firebaseUser.uid.slice(0, 8),
+    avatarUrl: storedAvatarUrl ?? firebaseUser.photoURL ?? null,
   };
 }
 
@@ -137,14 +135,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       await updateProfile(credential.user, {
         displayName: cleanDisplayName,
-        photoURL: fallbackAvatar,
       });
 
       await setDoc(doc(firestore, 'users', credential.user.uid), {
         displayName: cleanDisplayName,
         username: cleanUsername,
         email: credential.user.email,
-        avatarUrl: fallbackAvatar,
+        avatarUrl: null,
         bio: '',
         followersCount: 0,
         followingCount: 0,
