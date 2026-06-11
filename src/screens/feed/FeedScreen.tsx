@@ -15,7 +15,7 @@ export function FeedScreen() {
         <Pressable hitSlop={10} style={styles.iconButton}>
           <Menu size={23} color={palette.text} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>AnimaVibe</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Sociyo</Text>
         <View style={styles.iconButton} />
       </View>
 

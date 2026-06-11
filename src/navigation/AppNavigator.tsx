@@ -120,7 +120,7 @@ function MainDrawer() {
         name="HomeTabs"
         component={MainTabs}
         options={{
-          title: 'AnimaVibe',
+          title: 'Sociyo',
           drawerIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />

@@ -36,7 +36,7 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
         style={styles.container}
       >
         <View style={styles.topBar}>
-          <Text style={[styles.brand, { color: palette.text }]}>AnimaVibe</Text>
+          <Text style={[styles.brand, { color: palette.text }]}>Sociyo</Text>
           <ThemeToggle />
         </View>
 

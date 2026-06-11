@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "AnimaVibeSocial",
-    "slug": "AnimaVibeSocial",
+    "name": "Sociyo",
+    "slug": "sociyo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "animavibe",
+    "scheme": "sociyo",
     "ios": {
       "supportsTablet": true
     },

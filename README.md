@@ -1,4 +1,4 @@
-# AnimaVibe Social
+# Sociyo
 
 Starter tugas besar Kelompok 1 untuk mata kuliah Pemrograman Mobile Lanjut.
 Fokus project: social media app React Native + Expo dengan pendekatan animations-first.
