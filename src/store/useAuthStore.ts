@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithCredential,
   signOut,
   updateProfile,
   type User,
@@ -26,6 +28,7 @@ type AuthState = {
   error: string | null;
   initializeAuthListener: () => () => void;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogleIdToken: (idToken: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -50,10 +53,53 @@ function getFirebaseErrorMessage(error: unknown) {
     return 'Email atau password salah.';
   }
   if (code === 'auth/email-already-in-use') return 'Email ini sudah terdaftar.';
+  if (code === 'auth/account-exists-with-different-credential') {
+    return 'Email ini sudah terdaftar dengan metode login lain.';
+  }
   if (code === 'auth/weak-password') return 'Password minimal 6 karakter.';
   if (code === 'auth/network-request-failed') return 'Koneksi bermasalah. Coba lagi sebentar.';
 
   return 'Terjadi kesalahan. Coba lagi.';
+}
+
+function getDefaultUsername(firebaseUser: User) {
+  return firebaseUser.email?.split('@')[0] ?? firebaseUser.uid.slice(0, 8);
+}
+
+function getDefaultDisplayName(firebaseUser: User) {
+  return firebaseUser.displayName ?? firebaseUser.email ?? 'Pengguna';
+}
+
+async function ensureUserProfile(firebaseUser: User) {
+  const userRef = doc(firestore, 'users', firebaseUser.uid);
+  const snapshot = await getDoc(userRef);
+
+  if (snapshot.exists()) {
+    await setDoc(
+      userRef,
+      {
+        email: firebaseUser.email,
+        lastLoginAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    return;
+  }
+
+  await setDoc(userRef, {
+    displayName: getDefaultDisplayName(firebaseUser),
+    username: getDefaultUsername(firebaseUser),
+    email: firebaseUser.email,
+    avatarUrl: firebaseUser.photoURL ?? null,
+    bio: '',
+    followersCount: 0,
+    followingCount: 0,
+    postsCount: 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastLoginAt: serverTimestamp(),
+  });
 }
 
 async function getSessionUser(firebaseUser: User): Promise<SessionUser> {
@@ -74,7 +120,7 @@ async function getSessionUser(firebaseUser: User): Promise<SessionUser> {
     username:
       typeof data?.username === 'string' && data.username.trim().length > 0
         ? data.username
-        : firebaseUser.email?.split('@')[0] ?? firebaseUser.uid.slice(0, 8),
+        : getDefaultUsername(firebaseUser),
     avatarUrl: storedAvatarUrl ?? firebaseUser.photoURL ?? null,
   };
 }
@@ -114,6 +160,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+      set({ isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: getFirebaseErrorMessage(error) });
+      throw error;
+    }
+  },
+  loginWithGoogleIdToken: async (idToken) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(getFirebaseAuth(), credential);
+      await ensureUserProfile(userCredential.user);
       set({ isLoading: false });
     } catch (error) {
       set({ isLoading: false, error: getFirebaseErrorMessage(error) });

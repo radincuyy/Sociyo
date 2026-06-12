@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
@@ -22,6 +23,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const googleSignIn = useGoogleSignIn();
 
   const fields = [
     {
@@ -64,6 +66,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
     email.trim().length > 0 &&
     password.length >= 6 &&
     !isLoading;
+  const authError = error ?? googleSignIn.errorMessage;
 
   const handleRegister = async () => {
     if (!canSubmit) return;
@@ -76,7 +79,8 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
         <View style={styles.copy}>
           <Text style={[styles.title, { color: palette.text }]}>Buat profil awal</Text>
           <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-            Akun dibuat di Firebase Authentication, lalu profil awal disimpan ke Firestore.
+            Akun email atau Google dibuat di Firebase Authentication, lalu profil awal
+            disimpan ke Firestore.
           </Text>
         </View>
         <View style={styles.form}>
@@ -99,10 +103,22 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
               ]}
             />
           ))}
-          {error ? <Text style={[styles.error, { color: palette.accent }]}>{error}</Text> : null}
+          {authError ? <Text style={[styles.error, { color: palette.accent }]}>{authError}</Text> : null}
           <PrimaryButton onPress={handleRegister} disabled={!canSubmit}>
             {isLoading ? 'Memproses...' : 'Daftar'}
           </PrimaryButton>
+          <PrimaryButton
+            variant="ghost"
+            onPress={googleSignIn.signInWithGoogle}
+            disabled={isLoading || !googleSignIn.isReady}
+          >
+            Daftar dengan Google
+          </PrimaryButton>
+          {!googleSignIn.isConfigured ? (
+            <Text style={[styles.helper, { color: palette.textMuted }]}>
+              Isi EXPO_PUBLIC_GOOGLE_CLIENT_ID di .env untuk mengaktifkan Google Sign-In.
+            </Text>
+          ) : null}
           <PrimaryButton variant="ghost" onPress={() => navigation.goBack()}>
             Kembali login
           </PrimaryButton>
@@ -142,5 +158,10 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  helper: {
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
 });

@@ -37,7 +37,11 @@ EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=
 ```
+
+Untuk Google Sign-In, aktifkan provider Google di Firebase Authentication, lalu isi
+`EXPO_PUBLIC_GOOGLE_CLIENT_ID` dengan OAuth Client ID dari Google Cloud/Firebase.
 
 ## Fokus Minggu 13
 
