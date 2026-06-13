@@ -114,9 +114,9 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
           >
             Daftar dengan Google
           </PrimaryButton>
-          {!googleSignIn.isConfigured ? (
+          {googleSignIn.setupMessage ? (
             <Text style={[styles.helper, { color: palette.textMuted }]}>
-              Isi EXPO_PUBLIC_GOOGLE_CLIENT_ID di .env untuk mengaktifkan Google Sign-In.
+              {googleSignIn.setupMessage}
             </Text>
           ) : null}
           <PrimaryButton variant="ghost" onPress={() => navigation.goBack()}>

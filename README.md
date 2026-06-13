@@ -37,11 +37,16 @@ EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
-EXPO_PUBLIC_GOOGLE_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 ```
 
 Untuk Google Sign-In, aktifkan provider Google di Firebase Authentication, lalu isi
-`EXPO_PUBLIC_GOOGLE_CLIENT_ID` dengan OAuth Client ID dari Google Cloud/Firebase.
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` dengan OAuth Client ID tipe Web. Untuk Android,
+buat OAuth Client tipe Android dengan package `com.radincuyy.sociyo` dan SHA-1 debug
+project ini, lalu gunakan development build karena native Google Sign-In tidak tersedia
+di Expo Go.
 
 ## Fokus Minggu 13
 
