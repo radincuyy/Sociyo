@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
@@ -25,16 +26,12 @@ export function SearchScreen() {
           style={[styles.input, { color: palette.text }]}
         />
       </View>
-      <View
-        style={[
-          styles.emptyCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-        ]}
-      >
-        <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada hasil</Text>
-        <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
-          Data user dan konten akan muncul setelah search terhubung ke Firebase.
-        </Text>
+      <View style={styles.emptyWrap}>
+        <EmptyState
+          icon={<Search size={24} color={palette.primary} />}
+          title="Belum ada hasil"
+          message="Data user dan konten akan muncul setelah search terhubung ke Firebase."
+        />
       </View>
     </Screen>
   );
@@ -60,21 +57,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
-  emptyCard: {
+  emptyWrap: {
     marginTop: 16,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 18,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  emptyCopy: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
   },
 });

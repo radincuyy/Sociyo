@@ -1,98 +1,275 @@
-import { Image } from 'expo-image';
-import { LogOut } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Edit3, ImagePlus, UserRound, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
+import { Avatar } from '../../components/Avatar';
+import { EmptyState } from '../../components/EmptyState';
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 
+type ProfileFormState = {
+  displayName: string;
+  username: string;
+  bio: string;
+  avatarUrl: string;
+};
+
+function getProfileFormState(
+  user: ReturnType<typeof useAuthStore.getState>['user'],
+): ProfileFormState {
+  return {
+    displayName: user?.displayName ?? '',
+    username: user?.username ?? '',
+    bio: user?.bio ?? '',
+    avatarUrl: user?.avatarUrl ?? '',
+  };
+}
+
 export function ProfileScreen() {
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const updateUserProfile = useAuthStore((state) => state.updateUserProfile);
+  const clearError = useAuthStore((state) => state.clearError);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
-  const avatarInitial = (
-    user?.displayName?.trim().slice(0, 1) ||
-    user?.username?.trim().slice(0, 1) ||
-    '?'
-  ).toUpperCase();
+  const [isEditing, setIsEditing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [form, setForm] = useState<ProfileFormState>(getProfileFormState(user));
+
+  useEffect(() => {
+    setForm(getProfileFormState(user));
+  }, [user]);
+
+  const canSave = form.displayName.trim().length > 0 && form.username.trim().length > 0 && !isLoading;
+
+  const updateForm = (field: keyof ProfileFormState, value: string) => {
+    clearError();
+    setNotice(null);
+    setForm((currentForm) => ({ ...currentForm, [field]: value }));
+  };
+
+  const startEditing = () => {
+    clearError();
+    setNotice(null);
+    setForm(getProfileFormState(user));
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    clearError();
+    setNotice(null);
+    setForm(getProfileFormState(user));
+    setIsEditing(false);
+  };
+
+  const saveProfile = async () => {
+    if (!canSave) return;
+
+    try {
+      await updateUserProfile(form);
+      setNotice('Profil berhasil diperbarui.');
+      setIsEditing(false);
+    } catch {
+      return;
+    }
+  };
+
+  if (!user) {
+    return (
+      <Screen>
+        <View style={styles.centered}>
+          <EmptyState
+            icon={<UserRound size={24} color={palette.primary} />}
+            title="Sesi tidak ditemukan"
+            message="Silakan login ulang untuk melihat profil."
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        {user?.avatarUrl ? (
-          <Image source={{ uri: user.avatarUrl }} style={styles.avatar} contentFit="cover" />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: palette.surfaceMuted }]}>
-            <Text style={[styles.avatarInitial, { color: palette.text }]}>{avatarInitial}</Text>
-          </View>
-        )}
-        <View style={styles.identity}>
-          <Text style={[styles.name, { color: palette.text }]}>{user?.displayName}</Text>
-          <Text style={[styles.username, { color: palette.textMuted }]}>@{user?.username}</Text>
-        </View>
-        <Pressable
-          onPress={() => {
-            void logout();
-          }}
-          style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}
-        >
-          <LogOut size={18} color={palette.text} />
-        </Pressable>
-      </View>
-
-      <View style={styles.stats}>
-        {[
-          ['Posts', '0'],
-          ['Followers', '0'],
-          ['Following', '0'],
-        ].map(([label, value]) => (
-          <View key={label} style={[styles.statCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
-            <Text style={[styles.statLabel, { color: palette.textMuted }]}>{label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent posts</Text>
-      <View
-        style={[
-          styles.emptyCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-        ]}
+    <Screen padded={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        style={styles.keyboard}
       >
-        <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada postingan</Text>
-        <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
-          Post milik user akan tampil setelah fitur upload dan feed disambungkan.
-        </Text>
-      </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scroll}
+        >
+          <View style={styles.header}>
+            <Avatar
+              displayName={user.displayName}
+              username={user.username}
+              avatarUrl={user.avatarUrl}
+              size={82}
+            />
+            <View style={styles.identity}>
+              <Text style={[styles.name, { color: palette.text }]}>{user.displayName}</Text>
+              <Text style={[styles.username, { color: palette.textMuted }]}>@{user.username}</Text>
+            </View>
+            <Pressable
+              onPress={startEditing}
+              disabled={isEditing}
+              style={[
+                styles.iconButton,
+                { backgroundColor: palette.surfaceMuted, opacity: isEditing ? 0.55 : 1 },
+              ]}
+            >
+              <Edit3 size={18} color={palette.text} />
+            </Pressable>
+          </View>
+
+          <View style={styles.stats}>
+            {[
+              ['Posts', String(user.postsCount)],
+              ['Followers', String(user.followersCount)],
+              ['Following', String(user.followingCount)],
+            ].map(([label, value]) => (
+              <View
+                key={label}
+                style={[
+                  styles.statCard,
+                  { backgroundColor: palette.surface, borderColor: palette.border },
+                ]}
+              >
+                <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
+                <Text style={[styles.statLabel, { color: palette.textMuted }]}>{label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {isEditing ? (
+            <View style={[styles.editPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <View style={styles.panelHeader}>
+                <Text style={[styles.panelTitle, { color: palette.text }]}>Edit profile</Text>
+                <Pressable onPress={cancelEditing} hitSlop={8}>
+                  <X size={20} color={palette.textMuted} />
+                </Pressable>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: palette.text }]}>Name</Text>
+                <TextInput
+                  placeholder="Nama lengkap"
+                  placeholderTextColor={palette.textMuted}
+                  value={form.displayName}
+                  onChangeText={(value) => updateForm('displayName', value)}
+                  style={[
+                    styles.input,
+                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: palette.text }]}>Username</Text>
+                <TextInput
+                  placeholder="username"
+                  placeholderTextColor={palette.textMuted}
+                  autoCapitalize="none"
+                  value={form.username}
+                  onChangeText={(value) => updateForm('username', value)}
+                  style={[
+                    styles.input,
+                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: palette.text }]}>Bio</Text>
+                <TextInput
+                  multiline
+                  placeholder="Tulis bio singkat..."
+                  placeholderTextColor={palette.textMuted}
+                  value={form.bio}
+                  onChangeText={(value) => updateForm('bio', value)}
+                  style={[
+                    styles.textArea,
+                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: palette.text }]}>Avatar URL</Text>
+                <TextInput
+                  placeholder="https://..."
+                  placeholderTextColor={palette.textMuted}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                  value={form.avatarUrl}
+                  onChangeText={(value) => updateForm('avatarUrl', value)}
+                  style={[
+                    styles.input,
+                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
+                  ]}
+                />
+                <Text style={[styles.fieldHint, { color: palette.textMuted }]}>
+                  Upload avatar ke Storage masuk sprint Minggu 14; sekarang URL dulu untuk CRUD profil.
+                </Text>
+              </View>
+
+              {error ? <Text style={[styles.error, { color: palette.accent }]}>{error}</Text> : null}
+              <PrimaryButton onPress={saveProfile} disabled={!canSave}>
+                {isLoading ? 'Menyimpan...' : 'Simpan profil'}
+              </PrimaryButton>
+            </View>
+          ) : (
+            <View style={[styles.bioCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+              <Text style={[styles.cardTitle, { color: palette.text }]}>Bio</Text>
+              <Text style={[styles.bioText, { color: user.bio ? palette.text : palette.textMuted }]}>
+                {user.bio || 'Belum ada bio. Tap tombol edit untuk menambahkan bio singkat.'}
+              </Text>
+              {notice ? <Text style={[styles.notice, { color: palette.success }]}>{notice}</Text> : null}
+            </View>
+          )}
+
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent posts</Text>
+          <EmptyState
+            icon={<ImagePlus size={24} color={palette.primary} />}
+            title="Belum ada postingan"
+            message="Post milik user akan tampil setelah fitur upload dan feed disambungkan."
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboard: {
+    flex: 1,
+  },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 28,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   header: {
-    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-  },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-  },
-  avatarPlaceholder: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 28,
-    fontWeight: '900',
   },
   identity: {
     flex: 1,
@@ -106,7 +283,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  logout: {
+  iconButton: {
     width: 42,
     height: 42,
     borderRadius: 8,
@@ -134,26 +311,78 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  editPanel: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    gap: 12,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  panelTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  fieldGroup: {
+    gap: 7,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  input: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  textArea: {
+    minHeight: 92,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    textAlignVertical: 'top',
+    fontSize: 14,
+  },
+  fieldHint: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  error: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  bioCard: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+  },
+  cardTitle: {
+    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  bioText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  notice: {
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   sectionTitle: {
     marginTop: 26,
     marginBottom: 12,
     fontSize: 18,
     fontWeight: '900',
-  },
-  emptyCard: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 18,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  emptyCopy: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
   },
 });

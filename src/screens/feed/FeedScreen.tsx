@@ -1,36 +1,47 @@
-import { Menu } from 'lucide-react-native';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Bell, Menu } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
+import type { RootStackParamList } from '../../types/navigation';
+
+type FeedNavigation = NativeStackNavigationProp<RootStackParamList>;
 
 export function FeedScreen() {
+  const navigation = useNavigation<FeedNavigation>();
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
 
   return (
     <Screen padded={false}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
-        <Pressable hitSlop={10} style={styles.iconButton}>
+        <Pressable
+          hitSlop={10}
+          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+          style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.7 : 1 }]}
+        >
           <Menu size={23} color={palette.text} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>Sociyo</Text>
-        <View style={styles.iconButton} />
+        <Pressable
+          hitSlop={10}
+          onPress={() => navigation.navigate('Notifications')}
+          style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Bell size={22} color={palette.text} />
+        </Pressable>
       </View>
 
       <View style={styles.emptyWrap}>
-        <View
-          style={[
-            styles.emptyCard,
-            { backgroundColor: palette.surface, borderColor: palette.border },
-          ]}
-        >
-          <Text style={[styles.emptyTitle, { color: palette.text }]}>Belum ada postingan</Text>
-          <Text style={[styles.emptyCopy, { color: palette.textMuted }]}>
-            Feed akan tampil setelah data post disambungkan ke Firebase.
-          </Text>
-        </View>
+        <EmptyState
+          icon={<Menu size={24} color={palette.primary} />}
+          title="Belum ada postingan"
+          message="Feed akan tampil setelah data post disambungkan ke Firebase."
+        />
       </View>
     </Screen>
   );
@@ -59,22 +70,5 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     justifyContent: 'center',
-  },
-  emptyCard: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 18,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  emptyCopy: {
-    marginTop: 8,
-    maxWidth: 280,
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 20,
   },
 });
