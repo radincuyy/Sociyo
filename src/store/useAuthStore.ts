@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithCredential,
   signOut,
@@ -29,6 +30,7 @@ type AuthState = {
   initializeAuthListener: () => () => void;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogleIdToken: (idToken: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -160,6 +162,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       await signInWithEmailAndPassword(getFirebaseAuth(), email.trim(), password);
+      set({ isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: getFirebaseErrorMessage(error) });
+      throw error;
+    }
+  },
+  resetPassword: async (email) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
       set({ isLoading: false });
     } catch (error) {
       set({ isLoading: false, error: getFirebaseErrorMessage(error) });

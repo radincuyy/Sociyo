@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleAlert } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '../../components/Screen';
 import { ThemeToggle } from '../../components/ThemeToggle';
@@ -22,6 +22,23 @@ export function SettingsScreen() {
   return (
     <Screen>
       <Text style={[styles.title, { color: palette.text }]}>Settings</Text>
+      <View
+        style={[styles.aboutPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}
+      >
+        <Image
+          source={require('../../../assets/sociyo-icon.png')}
+          resizeMode="contain"
+          style={styles.aboutLogo}
+        />
+        <View style={styles.aboutCopy}>
+          <Text style={[styles.aboutTitle, { color: palette.text }]}>Sociyo</Text>
+          <Text style={[styles.aboutText, { color: palette.textMuted }]}>
+            A social app for sharing moments, stories, and conversations with your circle.
+          </Text>
+          <Text style={[styles.aboutVersion, { color: palette.textMuted }]}>Version 1.0.0</Text>
+        </View>
+      </View>
+
       <View style={styles.row}>
         <Text style={[styles.label, { color: palette.text }]}>Theme</Text>
         <ThemeToggle />
@@ -70,6 +87,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  aboutPanel: {
+    minHeight: 104,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 18,
+  },
+  aboutLogo: {
+    width: 70,
+    height: 70,
+  },
+  aboutCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  aboutTitle: {
+    fontSize: 20,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    letterSpacing: 0,
+  },
+  aboutText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  aboutVersion: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   label: {
     fontSize: 16,

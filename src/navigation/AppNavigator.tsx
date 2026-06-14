@@ -9,7 +9,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Bell, Home, ListVideo, PlusCircle, Search, Settings, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -20,6 +20,7 @@ import type {
   MainTabParamList,
   RootStackParamList,
 } from '../types/navigation';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { FeedScreen } from '../screens/feed/FeedScreen';
@@ -44,6 +45,12 @@ function BootScreen() {
 
   return (
     <View style={[styles.bootScreen, { backgroundColor: palette.background }]}>
+      <Image
+        source={require('../../assets/sociyo-icon.png')}
+        resizeMode="contain"
+        style={styles.bootLogo}
+      />
+      <Text style={[styles.bootBrand, { color: palette.text }]}>Sociyo</Text>
       <ActivityIndicator color={palette.primary} size="large" />
       <Text style={[styles.bootText, { color: palette.textMuted }]}>Menyiapkan sesi...</Text>
     </View>
@@ -55,6 +62,7 @@ function AuthNavigator() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -192,6 +200,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+  },
+  bootLogo: {
+    width: 108,
+    height: 108,
+    marginBottom: 4,
+  },
+  bootBrand: {
+    fontSize: 34,
+    fontStyle: 'italic',
+    fontWeight: '400',
+    letterSpacing: 0,
   },
   bootText: {
     fontSize: 14,
