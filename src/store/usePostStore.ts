@@ -136,9 +136,10 @@ export const usePostStore = create<PostState>((set, get) => ({
       }
 
       return postId;
-    } catch {
+    } catch (error) {
+      console.error('[createPost]', error);
       set({ isCreating: false, error: 'Gagal membuat post.' });
-      throw new Error('Gagal membuat post.');
+      throw error;
     }
   },
 

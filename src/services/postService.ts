@@ -98,8 +98,14 @@ export async function uploadPostImage(uri: string, authorId: string): Promise<st
   const filename = `posts/${authorId}/${Date.now()}.jpg`;
   const storageRef = ref(firebaseStorage, filename);
 
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
 
   const uploadTask = uploadBytesResumable(storageRef, blob);
 
