@@ -1,60 +1,59 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BellRing } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
+import type { RootStackParamList } from '../../types/navigation';
 
-const notifications = [
-  'Naya menyukai post kamu.',
-  'Bima mulai mengikuti kamu.',
-  'Checkpoint animasi Minggu 14: minimal 2 fitur unggulan selesai.',
-];
+type NotificationsScreenProps = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
-export function NotificationsScreen() {
+export function NotificationsScreen({ navigation }: NotificationsScreenProps) {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
 
   return (
     <Screen>
-      <Text style={[styles.title, { color: palette.text }]}>Notifications</Text>
-      <View style={styles.list}>
-        {notifications.map((notification) => (
-          <View
-            key={notification}
-            style={[styles.item, { backgroundColor: palette.surface, borderColor: palette.border }]}
-          >
-            <BellRing size={20} color={palette.primary} />
-            <Text style={[styles.copy, { color: palette.text }]}>{notification}</Text>
-          </View>
-        ))}
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <ChevronLeft size={24} color={palette.text} />
+        </Pressable>
+        <Text style={[styles.title, { color: palette.text }]}>Notifications</Text>
+        <View style={styles.backButton} />
       </View>
+      <EmptyState
+        icon={<BellRing size={24} color={palette.primary} />}
+        title="Belum ada notifikasi"
+        message="Notifikasi akan muncul setelah aktivitas real user tersambung."
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    marginTop: 12,
+  header: {
+    minHeight: 48,
+    marginTop: 4,
     marginBottom: 16,
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  list: {
-    gap: 10,
-  },
-  item: {
-    minHeight: 62,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
-  copy: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '900',
   },
 });

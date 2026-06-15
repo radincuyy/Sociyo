@@ -1,8 +1,8 @@
 import { Search } from 'lucide-react-native';
-import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
-import { posts } from '../../data/mockData';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 
@@ -26,19 +26,13 @@ export function SearchScreen() {
           style={[styles.input, { color: palette.text }]}
         />
       </View>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={[styles.result, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-            <Text style={[styles.resultTitle, { color: palette.text }]}>{item.author}</Text>
-            <Text numberOfLines={2} style={[styles.resultCopy, { color: palette.textMuted }]}>
-              {item.caption}
-            </Text>
-          </View>
-        )}
-      />
+      <View style={styles.emptyWrap}>
+        <EmptyState
+          icon={<Search size={24} color={palette.primary} />}
+          title="Belum ada hasil"
+          message="Data user dan konten akan muncul setelah search terhubung ke Firebase."
+        />
+      </View>
     </Screen>
   );
 }
@@ -63,22 +57,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
-  list: {
-    gap: 10,
-    paddingVertical: 16,
-  },
-  result: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    gap: 6,
-  },
-  resultTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  resultCopy: {
-    fontSize: 13,
-    lineHeight: 19,
+  emptyWrap: {
+    marginTop: 16,
   },
 });

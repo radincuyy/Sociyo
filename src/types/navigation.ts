@@ -3,13 +3,14 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
 };
 
 export type MainTabParamList = {
   Feed: undefined;
-  Search: undefined;
+  Messages: undefined;
   Create: undefined;
-  Notifications: undefined;
+  Search: undefined;
   Profile: undefined;
 };
 
@@ -20,8 +21,10 @@ export type MainDrawerParamList = {
 };
 
 export type RootStackParamList = {
+  Boot: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   Main: NavigatorScreenParams<MainDrawerParamList> | undefined;
+  Notifications: undefined;
   PostDetail: { postId: string };
   StoryViewer: { storyId?: string };
   PhotoViewer: { imageUrl: string; alt?: string };

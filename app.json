@@ -1,16 +1,18 @@
 {
   "expo": {
-    "name": "AnimaVibeSocial",
-    "slug": "AnimaVibeSocial",
+    "name": "Sociyo",
+    "slug": "sociyo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "animavibe",
+    "scheme": "sociyo",
     "ios": {
+      "bundleIdentifier": "com.radincuyy.sociyo",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.radincuyy.sociyo",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
