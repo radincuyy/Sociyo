@@ -12,7 +12,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useThemeStore } from '../store/useThemeStore';
 import { colors } from '../theme/colors';
@@ -23,19 +23,21 @@ type AnimatedPostCardProps = {
   index: number;
   onOpen: () => void;
   onPhotoOpen: () => void;
+  onLike?: () => void;
 };
 
-export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedPostCardProps) {
+export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: AnimatedPostCardProps) {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likes);
   const appear = useSharedValue(0);
   const heartScale = useSharedValue(1);
-  const burst = useSharedValue(0);
+  const burst = useSharedValue(1);
   const countLift = useSharedValue(0);
   const avatarInitial = post.author.trim().slice(0, 1).toUpperCase() || '?';
-  const meta = [post.location, post.createdAt].filter(Boolean).join(' - ');
+  const formattedDate = post.createdAt
+    ? new Date(post.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  const meta = [post.location, formattedDate].filter(Boolean).join(' · ');
 
   useEffect(() => {
     appear.value = withDelay(
@@ -45,10 +47,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
   }, [appear, index]);
 
   const triggerLike = () => {
-    if (!liked) {
-      setLiked(true);
-      setLikeCount((current) => current + 1);
-    }
+    onLike?.();
     heartScale.value = withSequence(withSpring(1.3), withSpring(1));
     burst.value = 0;
     burst.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
@@ -75,7 +74,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
     transform: [{ translateY: -countLift.value * 3 }],
   }));
 
-  const doubleTap = useMemo(
+  const imageDoubleTap = useMemo(
     () =>
       Gesture.Tap()
         .numberOfTaps(2)
@@ -86,30 +85,32 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
     [triggerLike],
   );
 
-  const singleTap = useMemo(
+  const imageSingleTap = useMemo(
     () =>
       Gesture.Tap()
         .numberOfTaps(1)
         .onEnd(() => {
-          runOnJS(onOpen)();
+          if (post.imageUrl) {
+            runOnJS(onPhotoOpen)();
+          }
         }),
-    [onOpen],
+    [onPhotoOpen, post.imageUrl],
   );
 
-  const tapGesture = Gesture.Exclusive(doubleTap, singleTap);
+  const imageGesture = Gesture.Exclusive(imageDoubleTap, imageSingleTap);
 
   return (
-    <GestureDetector gesture={tapGesture}>
-      <Animated.View
-        style={[
-          styles.card,
-          cardStyle,
-          {
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-          },
-        ]}
-      >
+    <Animated.View
+      style={[
+        styles.card,
+        cardStyle,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+        },
+      ]}
+    >
+      <Pressable onPress={onOpen}>
         <View style={styles.header}>
           {post.avatarUrl ? (
             <Image source={{ uri: post.avatarUrl }} style={styles.avatar} contentFit="cover" />
@@ -125,8 +126,10 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
             </Text>
           </View>
         </View>
+      </Pressable>
 
-        <Pressable onPress={post.imageUrl ? onPhotoOpen : undefined} style={styles.imageWrap}>
+      <GestureDetector gesture={imageGesture}>
+        <Animated.View style={styles.imageWrap}>
           {post.imageUrl ? (
             <Image source={{ uri: post.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
@@ -139,15 +142,16 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
           <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]}>
             <Heart size={74} fill="#FFFFFF" color="#FFFFFF" />
           </Animated.View>
-        </Pressable>
+        </Animated.View>
+      </GestureDetector>
 
         <View style={styles.actions}>
           <Pressable onPress={triggerLike} style={styles.actionButton}>
             <Animated.View style={heartStyle}>
               <Heart
                 size={23}
-                color={liked ? palette.accent : palette.text}
-                fill={liked ? palette.accent : 'transparent'}
+                color={post.likedByMe ? palette.accent : palette.text}
+                fill={post.likedByMe ? palette.accent : 'transparent'}
               />
             </Animated.View>
           </Pressable>
@@ -160,7 +164,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
         </View>
 
         <Animated.Text style={[styles.likes, countStyle, { color: palette.text }]}>
-          {likeCount.toLocaleString('id-ID')} suka
+          {post.likes.toLocaleString('id-ID')} suka
         </Animated.Text>
         <Text style={[styles.caption, { color: palette.text }]}>
           <Text style={styles.username}>{post.username}</Text> {post.caption}
@@ -168,8 +172,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen }: AnimatedP
         <Text style={[styles.comments, { color: palette.textMuted }]}>
           Lihat {post.comments} komentar
         </Text>
-      </Animated.View>
-    </GestureDetector>
+    </Animated.View>
   );
 }
 
