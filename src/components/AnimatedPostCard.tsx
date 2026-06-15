@@ -145,33 +145,35 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
         </Animated.View>
       </GestureDetector>
 
-        <View style={styles.actions}>
-          <Pressable onPress={triggerLike} style={styles.actionButton}>
-            <Animated.View style={heartStyle}>
-              <Heart
-                size={23}
-                color={post.likedByMe ? palette.accent : palette.text}
-                fill={post.likedByMe ? palette.accent : 'transparent'}
-              />
-            </Animated.View>
-          </Pressable>
-          <Pressable onPress={onOpen} style={styles.actionButton}>
-            <MessageCircle size={23} color={palette.text} />
-          </Pressable>
-          <Pressable style={styles.actionButton}>
-            <Send size={22} color={palette.text} />
-          </Pressable>
-        </View>
+      <View style={styles.actions}>
+        <Pressable onPress={triggerLike} style={styles.actionButton}>
+          <Animated.View style={heartStyle}>
+            <Heart
+              size={23}
+              color={post.likedByMe ? palette.accent : palette.text}
+              fill={post.likedByMe ? palette.accent : 'transparent'}
+            />
+          </Animated.View>
+        </Pressable>
+        <Pressable onPress={onOpen} style={styles.actionButton}>
+          <MessageCircle size={23} color={palette.text} />
+        </Pressable>
+        <Pressable style={styles.actionButton}>
+          <Send size={22} color={palette.text} />
+        </Pressable>
+      </View>
 
-        <Animated.Text style={[styles.likes, countStyle, { color: palette.text }]}>
-          {post.likes.toLocaleString('id-ID')} suka
-        </Animated.Text>
-        <Text style={[styles.caption, { color: palette.text }]}>
-          <Text style={styles.username}>{post.username}</Text> {post.caption}
-        </Text>
+      <Animated.Text style={[styles.likes, countStyle, { color: palette.text }]}>
+        {post.likes.toLocaleString('id-ID')} suka
+      </Animated.Text>
+      <Text style={[styles.caption, { color: palette.text }]}>
+        <Text style={styles.username}>{post.username}</Text> {post.caption}
+      </Text>
+      <Pressable onPress={onOpen}>
         <Text style={[styles.comments, { color: palette.textMuted }]}>
           Lihat {post.comments} komentar
         </Text>
+      </Pressable>
     </Animated.View>
   );
 }
