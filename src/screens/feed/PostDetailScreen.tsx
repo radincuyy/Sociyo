@@ -56,6 +56,7 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [imgAspect, setImgAspect] = useState(1);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -188,8 +189,12 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
         >
           <Image
             source={{ uri: post.imageUrl }}
-            style={[styles.postImage, { borderColor: palette.border }]}
+            style={[styles.postImage, { aspectRatio: imgAspect }]}
             contentFit="cover"
+            onLoad={(e) => {
+              const { width, height } = e.source;
+              if (width && height) setImgAspect(width / height);
+            }}
           />
         </Pressable>
       ) : null}
@@ -371,9 +376,6 @@ const styles = StyleSheet.create({
   postImage: {
     marginTop: 14,
     marginHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    aspectRatio: 1,
     width: undefined,
   },
   timestamp: {
