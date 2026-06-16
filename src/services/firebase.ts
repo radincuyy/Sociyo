@@ -21,7 +21,7 @@ const firebaseConfig = {
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
 export const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const firestore = getFirestore(firebaseApp);
+export const firestore = getFirestore(firebaseApp, 'new-db');
 export const firebaseStorage = getStorage(firebaseApp);
 
 let authInstance: Auth | null = null;
