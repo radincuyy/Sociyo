@@ -26,6 +26,6 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainDrawerParamList> | undefined;
   Notifications: undefined;
   PostDetail: { postId: string };
-  StoryViewer: { storyId?: string };
+  StoryViewer: { userId: string };
   PhotoViewer: { imageUrl: string; alt?: string };
 };
