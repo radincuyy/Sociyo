@@ -209,5 +209,5 @@ export async function postComment(postId: string, text: string): Promise<string>
 
 export async function fetchUserPosts(userId: string): Promise<Post[]> {
   const currentUserId = getCurrentUserId();
-  return getUserPostsService(userId, currentUserId ?? undefined);
+  return getUserPostsService(userId, { currentUserId: currentUserId ?? undefined });
 }

@@ -1,7 +1,7 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bell, Menu, RefreshCw, PlusCircle } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import type { StoryGroup } from '../../types/social';
 
 import { AnimatedPostCard } from '../../components/AnimatedPostCard';
 import { EmptyState } from '../../components/EmptyState';
@@ -25,6 +26,43 @@ import type { RootStackParamList } from '../../types/navigation';
 import type { Post } from '../../types/social';
 
 type FeedNavigation = NativeStackNavigationProp<RootStackParamList>;
+
+type Palette = (typeof colors)[keyof typeof colors];
+
+function StoryAvatarItem({ group, palette, onPress }: { group: StoryGroup; palette: Palette; onPress: () => void }) {
+  const rotating = useSharedValue(0);
+  useEffect(() => {
+    if (group.hasUnviewed) {
+      rotating.value = withRepeat(withTiming(360, { duration: 2000 }), -1, false);
+    }
+    return () => {
+      rotating.value = 0;
+    };
+  }, [group.hasUnviewed, rotating]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotating.value}deg` }],
+  }));
+
+  return (
+    <Pressable onPress={onPress} style={styles.storyItem}>
+      <Animated.View style={[
+        styles.storyRing,
+        group.hasUnviewed ? ringStyle : { borderColor: 'rgba(255,255,255,0.18)' },
+      ]}>
+        {group.avatarUrl ? (
+          <Image source={{ uri: group.avatarUrl }} style={styles.storyAvatar} contentFit="cover" />
+        ) : (
+          <View style={[styles.storyAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.storyAvatarLetter, { color: palette.text }]}>
+              {group.author.slice(0, 1).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export function FeedScreen() {
   const navigation = useNavigation<FeedNavigation>();
@@ -79,74 +117,33 @@ export function FeedScreen() {
     [navigation, toggleLike],
   );
 
-  // Story rings header
-  const storyGroups = groups;
-
-  function StoryAvatarItem({ group }: { group: typeof storyGroups[number] }) {
-    const rotating = useSharedValue(0);
-    useEffect(() => {
-      if (group.hasUnviewed) {
-        rotating.value = withRepeat(withTiming(360, { duration: 2000 }), -1, false);
-      }
-      return () => {
-        rotating.value = 0;
-      };
-    }, [group.hasUnviewed, rotating]);
-
-    const ringStyle = useAnimatedStyle(() => ({
-      transform: [{ rotate: `${rotating.value}deg` }],
-    }));
-
-    return (
-      <Pressable
-        onPress={() => navigation.navigate('StoryViewer', { userId: group.userId })}
-        style={styles.storyItem}
-      >
-        <Animated.View style={[
-          styles.storyRing,
-          group.hasUnviewed ? ringStyle : { borderColor: 'rgba(255,255,255,0.18)' },
-        ]}
-        >
-          {group.avatarUrl ? (
-            <Image source={{ uri: group.avatarUrl }} style={styles.storyAvatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.storyAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
-              <Text style={[styles.storyAvatarLetter, { color: palette.text }]}>
-                {group.author.slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-      </Pressable>
-    );
-  }
-
-  const headerData = [{ id: 'create', type: 'create' as const }, ...storyGroups.map((g) => ({ id: g.userId, type: 'group' as const, group: g }))];
-
-  const storyHeader = useMemo(() => (
+  const renderStoryHeader = () => (
     <View style={styles.storyHeaderWrap}>
       <FlatList
-        data={headerData}
+        data={groups}
         horizontal
-        keyExtractor={(it) => it.id}
+        keyExtractor={(g) => g.userId}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.storyList}
-        renderItem={({ item }) =>
-          item.type === 'create' ? (
-            <Pressable style={styles.storyItem} onPress={() => {}}>
-              <View style={[styles.storyRing, { borderColor: palette.primary }]}>
-                <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}> 
-                  <PlusCircle size={20} color={palette.primary} />
-                </View>
+        ListHeaderComponent={
+          <Pressable style={styles.storyItem} onPress={() => {}}>
+            <View style={[styles.storyRing, { borderColor: palette.primary }]}>
+              <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}>
+                <PlusCircle size={20} color={palette.primary} />
               </View>
-            </Pressable>
-          ) : (
-            <StoryAvatarItem group={item.group} />
-          )
+            </View>
+          </Pressable>
         }
+        renderItem={({ item }) => (
+          <StoryAvatarItem
+            group={item}
+            palette={palette}
+            onPress={() => navigation.navigate('StoryViewer', { userId: item.userId })}
+          />
+        )}
       />
     </View>
-  ), [headerData, palette]);
+  );
 
   const renderFooter = useCallback(() => {
     if (!isLoading || posts.length === 0) return null;
@@ -200,7 +197,7 @@ export function FeedScreen() {
         </Pressable>
       </View>
 
-      {storyHeader}
+      {renderStoryHeader()}
 
       <FlatList
         data={posts}

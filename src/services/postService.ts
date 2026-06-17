@@ -203,12 +203,14 @@ export async function getPostById(postId: string, currentUserId?: string): Promi
 
 // Read user's posts
 
-export async function getUserPosts(userId: string, maxResultsOrCurrentUserId?: number | string): Promise<Post[]> {
-  // Supports two calling conventions for compatibility:
-  // - getUserPosts(userId, currentUserId: string)
-  // - getUserPosts(userId, maxResults: number)
-  const currentUserId = typeof maxResultsOrCurrentUserId === 'string' ? maxResultsOrCurrentUserId : undefined;
-  const maxResults = typeof maxResultsOrCurrentUserId === 'number' ? maxResultsOrCurrentUserId : undefined;
+type GetUserPostsOptions = {
+  currentUserId?: string;
+  maxResults?: number;
+};
+
+export async function getUserPosts(userId: string, options?: GetUserPostsOptions): Promise<Post[]> {
+  const currentUserId = options?.currentUserId;
+  const maxResults = options?.maxResults;
 
   const clauses: QueryConstraint[] = [where('authorId', '==', userId)];
   if (typeof maxResults === 'number' && Number.isFinite(maxResults) && maxResults > 0) {

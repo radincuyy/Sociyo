@@ -129,25 +129,27 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
     }
   }
 
-  // gestures
+  function swipeToNextGroup() {
+    if (groupIndex < groups.length - 1) {
+      setGroupIndex((g) => g + 1);
+      setCurrentIndex(0);
+    }
+  }
+
+  function swipeToPrevGroup() {
+    if (groupIndex > 0) {
+      setGroupIndex((g) => g - 1);
+      setCurrentIndex(0);
+    }
+  }
+
   const pan = Gesture.Pan().onEnd((e) => {
     const vx = e.velocityX ?? 0;
     const tx = e.translationX ?? 0;
     if (tx < -100 || vx < -500) {
-      // swipe left -> next group
-      runOnJS(() => {
-        if (groupIndex < groups.length - 1) {
-          setGroupIndex((g) => g + 1);
-          setCurrentIndex(0);
-        }
-      })();
+      runOnJS(swipeToNextGroup)();
     } else if (tx > 100 || vx > 500) {
-      runOnJS(() => {
-        if (groupIndex > 0) {
-          setGroupIndex((g) => g - 1);
-          setCurrentIndex(0);
-        }
-      })();
+      runOnJS(swipeToPrevGroup)();
     }
   });
 
@@ -208,7 +210,7 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
           </View>
 
           {/* Header */}
-          <View style={styles.headerOverlay} pointerEvents="box-none">
+          <View style={styles.headerOverlay}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrap}>
                 {/* avatar placeholder */}
@@ -289,14 +291,11 @@ const styles = StyleSheet.create({
   },
 
   headerOverlay: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },

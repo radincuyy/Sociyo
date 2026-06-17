@@ -113,7 +113,7 @@ export function ProfileScreen() {
     if (!user) return;
     let mounted = true;
     setPostsLoading(true);
-    getUserPosts(user.id, 100)
+    getUserPosts(user.id, { maxResults: 100 })
       .then((res) => {
         if (!mounted) return;
         setPosts(res);

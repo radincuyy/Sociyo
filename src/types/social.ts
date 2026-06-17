@@ -58,7 +58,7 @@ export type CommentDoc = {
 
 export type StoryDoc = {
   authorId: string;
-  imageUrl: string | null;
+  imageUrl: string;
   caption: string;
   createdAt: unknown;
   expiresAt: unknown;

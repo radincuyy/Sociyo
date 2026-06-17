@@ -2,7 +2,6 @@ import { create } from 'zustand';
 
 import { useAuthStore } from './useAuthStore';
 import {
-  createStory as createStoryService,
   getStoryGroups as getStoryGroupsService,
   markStoryViewed as markStoryViewedService,
 } from '../services/storyService';
@@ -32,8 +31,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       const userId = getCurrentUserId();
       const groups = await getStoryGroupsService(userId ?? undefined);
       set({ groups, loading: false });
-    } catch (error) {
-      console.error('[fetchStories]', error);
+    } catch {
       set({ loading: false });
     }
   },
@@ -55,8 +53,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
     try {
       await markStoryViewedService(storyId, userId);
-    } catch (error) {
-      console.error('[markViewed]', error);
+    } catch {
       set({ groups: original });
     }
   },
