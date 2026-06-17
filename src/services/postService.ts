@@ -16,6 +16,7 @@ import {
   where,
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
+  type QueryConstraint,
 } from 'firebase/firestore';
 import {
   deleteObject,
@@ -209,7 +210,7 @@ export async function getUserPosts(userId: string, maxResultsOrCurrentUserId?: n
   const currentUserId = typeof maxResultsOrCurrentUserId === 'string' ? maxResultsOrCurrentUserId : undefined;
   const maxResults = typeof maxResultsOrCurrentUserId === 'number' ? maxResultsOrCurrentUserId : undefined;
 
-  const clauses: any[] = [where('authorId', '==', userId)];
+  const clauses: QueryConstraint[] = [where('authorId', '==', userId)];
   if (typeof maxResults === 'number' && Number.isFinite(maxResults) && maxResults > 0) {
     clauses.push(limit(maxResults));
   }

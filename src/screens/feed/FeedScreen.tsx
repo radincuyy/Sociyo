@@ -133,7 +133,7 @@ export function FeedScreen() {
         contentContainerStyle={styles.storyList}
         renderItem={({ item }) =>
           item.type === 'create' ? (
-            <Pressable style={styles.storyItem} onPress={() => console.log('Create story')}>
+            <Pressable style={styles.storyItem} onPress={() => {}}>
               <View style={[styles.storyRing, { borderColor: palette.primary }]}>
                 <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}> 
                   <PlusCircle size={20} color={palette.primary} />
