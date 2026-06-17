@@ -1,7 +1,7 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell, Menu, RefreshCw } from 'lucide-react-native';
-import { useCallback, useEffect } from 'react';
+import { Bell, Menu, RefreshCw, PlusCircle } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,12 +11,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { AnimatedPostCard } from '../../components/AnimatedPostCard';
 import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
 import { usePostStore } from '../../store/usePostStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useStoryStore } from '../../store/useStoryStore';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import type { Post } from '../../types/social';
@@ -37,9 +40,14 @@ export function FeedScreen() {
   const loadMorePosts = usePostStore((state) => state.loadMorePosts);
   const toggleLike = usePostStore((state) => state.toggleLike);
 
+  const groups = useStoryStore((s) => s.groups);
+  const fetchStories = useStoryStore((s) => s.fetchStories);
+
   useEffect(() => {
     void fetchPosts();
-  }, [fetchPosts]);
+    // fetch stories as well
+    void fetchStories();
+  }, [fetchPosts, fetchStories]);
 
   const handleRefresh = useCallback(() => {
     void refreshPosts();
@@ -70,6 +78,75 @@ export function FeedScreen() {
     ),
     [navigation, toggleLike],
   );
+
+  // Story rings header
+  const storyGroups = groups;
+
+  function StoryAvatarItem({ group }: { group: typeof storyGroups[number] }) {
+    const rotating = useSharedValue(0);
+    useEffect(() => {
+      if (group.hasUnviewed) {
+        rotating.value = withRepeat(withTiming(360, { duration: 2000 }), -1, false);
+      }
+      return () => {
+        rotating.value = 0;
+      };
+    }, [group.hasUnviewed, rotating]);
+
+    const ringStyle = useAnimatedStyle(() => ({
+      transform: [{ rotate: `${rotating.value}deg` }],
+    }));
+
+    return (
+      <Pressable
+        onPress={() => navigation.navigate('StoryViewer', { userId: group.userId })}
+        style={styles.storyItem}
+      >
+        <Animated.View style={[
+          styles.storyRing,
+          group.hasUnviewed ? ringStyle : { borderColor: 'rgba(255,255,255,0.18)' },
+        ]}
+        >
+          {group.avatarUrl ? (
+            <Image source={{ uri: group.avatarUrl }} style={styles.storyAvatar} contentFit="cover" />
+          ) : (
+            <View style={[styles.storyAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
+              <Text style={[styles.storyAvatarLetter, { color: palette.text }]}>
+                {group.author.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+      </Pressable>
+    );
+  }
+
+  const headerData = [{ id: 'create', type: 'create' as const }, ...storyGroups.map((g) => ({ id: g.userId, type: 'group' as const, group: g }))];
+
+  const storyHeader = useMemo(() => (
+    <View style={styles.storyHeaderWrap}>
+      <FlatList
+        data={headerData}
+        horizontal
+        keyExtractor={(it) => it.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.storyList}
+        renderItem={({ item }) =>
+          item.type === 'create' ? (
+            <Pressable style={styles.storyItem} onPress={() => console.log('Create story')}>
+              <View style={[styles.storyRing, { borderColor: palette.primary }]}>
+                <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}> 
+                  <PlusCircle size={20} color={palette.primary} />
+                </View>
+              </View>
+            </Pressable>
+          ) : (
+            <StoryAvatarItem group={item.group} />
+          )
+        }
+      />
+    </View>
+  ), [headerData, palette]);
 
   const renderFooter = useCallback(() => {
     if (!isLoading || posts.length === 0) return null;
@@ -122,6 +199,8 @@ export function FeedScreen() {
           <Bell size={22} color={palette.text} />
         </Pressable>
       </View>
+
+      {storyHeader}
 
       <FlatList
         data={posts}
@@ -191,5 +270,49 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  // story header styles
+  storyHeaderWrap: {
+    paddingVertical: 12,
+    paddingLeft: 16,
+    paddingRight: 8,
+  },
+  storyList: {
+    paddingRight: 16,
+    alignItems: 'center',
+    gap: 12,
+  },
+  storyItem: {
+    width: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  storyRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  storyAvatarFallback: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyAvatarLetter: {
+    fontSize: 16,
+    fontWeight: '900',
   },
 });
