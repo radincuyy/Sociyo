@@ -5,7 +5,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -114,7 +113,9 @@ async function docToStory(snapshot: QueryDocumentSnapshot | DocumentSnapshot, cu
 // Get active story groups
 export async function getStoryGroups(currentUserId?: string): Promise<StoryGroup[]> {
   const now = new Date();
-  const q = query(collection(firestore, STORIES_COLLECTION), where('expiresAt', '>', now), orderBy('createdAt', 'asc'));
+  // Query only with a single range filter on expiresAt to avoid requiring a composite index.
+  // Sorting will be performed client-side after fetching documents.
+  const q = query(collection(firestore, STORIES_COLLECTION), where('expiresAt', '>', now));
 
   const snapshot = await getDocs(q);
 
@@ -133,7 +134,18 @@ export async function getStoryGroups(currentUserId?: string): Promise<StoryGroup
   for (const [authorId, docs] of groupsMap.entries()) {
     const authorInfo = await getAuthorInfo(authorId);
 
-    const stories = await Promise.all(docs.map((d) => docToStory(d, currentUserId)));
+    // Sort docs by createdAt ascending on the client to avoid composite index requirements.
+    const sortedDocs = docs.slice().sort((a, b) => {
+      const da = (a.data() ?? {}) as Record<string, unknown>;
+      const db = (b.data() ?? {}) as Record<string, unknown>;
+
+      const ta = typeof da.createdAt === 'object' && da.createdAt && 'toDate' in da.createdAt ? (da.createdAt as { toDate: () => Date }).toDate().getTime() : 0;
+      const tb = typeof db.createdAt === 'object' && db.createdAt && 'toDate' in db.createdAt ? (db.createdAt as { toDate: () => Date }).toDate().getTime() : 0;
+
+      return ta - tb;
+    });
+
+    const stories = await Promise.all(sortedDocs.map((d) => docToStory(d, currentUserId)));
 
     const hasUnviewed = currentUserId ? stories.some((s) => !s.viewed) : false;
 

@@ -202,15 +202,34 @@ export async function getPostById(postId: string, currentUserId?: string): Promi
 
 // Read user's posts
 
-export async function getUserPosts(userId: string, currentUserId?: string): Promise<Post[]> {
-  const q = query(
-    collection(firestore, POSTS_COLLECTION),
-    where('authorId', '==', userId),
-    orderBy('createdAt', 'desc'),
-  );
+export async function getUserPosts(userId: string, maxResultsOrCurrentUserId?: number | string): Promise<Post[]> {
+  // Supports two calling conventions for compatibility:
+  // - getUserPosts(userId, currentUserId: string)
+  // - getUserPosts(userId, maxResults: number)
+  const currentUserId = typeof maxResultsOrCurrentUserId === 'string' ? maxResultsOrCurrentUserId : undefined;
+  const maxResults = typeof maxResultsOrCurrentUserId === 'number' ? maxResultsOrCurrentUserId : undefined;
+
+  const clauses: any[] = [where('authorId', '==', userId)];
+  if (typeof maxResults === 'number' && Number.isFinite(maxResults) && maxResults > 0) {
+    clauses.push(limit(maxResults));
+  }
+
+  const q = query(collection(firestore, POSTS_COLLECTION), ...clauses);
 
   const snapshot = await getDocs(q);
-  return Promise.all(snapshot.docs.map((postDoc) => docToPost(postDoc, currentUserId)));
+
+  // Sort by createdAt descending on client-side to avoid composite index requirements
+  const sortedDocs = snapshot.docs.slice().sort((a, b) => {
+    const da = (a.data() ?? {}) as Record<string, unknown>;
+    const db = (b.data() ?? {}) as Record<string, unknown>;
+
+    const ta = typeof da.createdAt === 'object' && da.createdAt && 'toDate' in da.createdAt ? (da.createdAt as { toDate: () => Date }).toDate().getTime() : 0;
+    const tb = typeof db.createdAt === 'object' && db.createdAt && 'toDate' in db.createdAt ? (db.createdAt as { toDate: () => Date }).toDate().getTime() : 0;
+
+    return tb - ta; // desc
+  });
+
+  return Promise.all(sortedDocs.map((postDoc) => docToPost(postDoc, currentUserId)));
 }
 
 // Delete post
