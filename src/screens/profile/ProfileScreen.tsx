@@ -9,7 +9,7 @@ import {
   Text,
   TextInput,
   View,
-  FlatList,
+
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
@@ -298,26 +298,30 @@ export function ProfileScreen() {
               message="Post milik user akan tampil setelah fitur upload dan feed disambungkan."
             />
           ) : (
-            <FlatList
-              data={posts}
-              keyExtractor={(item) => item.id}
-              numColumns={NUM_COLUMNS}
-              columnWrapperStyle={styles.gridRow}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => nav.navigate('PostDetail', { postId: item.id })}
-                  style={styles.gridTile}
-                >
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.gridImage} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.gridFallback, { backgroundColor: palette.surface }]}>
-                      <Text numberOfLines={2} style={{ color: palette.text, fontWeight: '700' }}>{item.caption}</Text>
-                    </View>
-                  )}
-                </Pressable>
-              )}
-            />
+            <View style={styles.gridContainer}>
+              {Array.from({ length: Math.ceil(posts.length / NUM_COLUMNS) }, (_, rowIdx) => {
+                const rowItems = posts.slice(rowIdx * NUM_COLUMNS, (rowIdx + 1) * NUM_COLUMNS);
+                return (
+                  <View key={rowIdx} style={styles.gridRow}>
+                    {rowItems.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => nav.navigate('PostDetail', { postId: item.id })}
+                        style={styles.gridTile}
+                      >
+                        {item.imageUrl ? (
+                          <Image source={{ uri: item.imageUrl }} style={styles.gridImage} contentFit="cover" />
+                        ) : (
+                          <View style={[styles.gridFallback, { backgroundColor: palette.surface }]}>
+                            <Text numberOfLines={2} style={{ color: palette.text, fontWeight: '700' }}>{item.caption}</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -459,7 +463,11 @@ const styles = StyleSheet.create({
   },
 
   // grid
+  gridContainer: {
+    paddingHorizontal: 0,
+  },
   gridRow: {
+    flexDirection: 'row',
     gap: GRID_GAP,
     marginBottom: GRID_GAP,
   },
