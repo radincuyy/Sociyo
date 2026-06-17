@@ -9,7 +9,14 @@ import {
   Text,
   TextInput,
   View,
+  FlatList,
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../types/navigation';
 
 import { Avatar } from '../../components/Avatar';
 import { EmptyState } from '../../components/EmptyState';
@@ -18,6 +25,15 @@ import { Screen } from '../../components/Screen';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
+import { getUserPosts } from '../../services/postService';
+import type { Post } from '../../types/social';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const GRID_GAP = 2;
+const NUM_COLUMNS = 3;
+const TILE_SIZE = (SCREEN_WIDTH - GRID_GAP * (NUM_COLUMNS - 1) - 32) / NUM_COLUMNS; // account for paddingHorizontal 16
 
 type ProfileFormState = {
   displayName: string;
@@ -55,6 +71,11 @@ export function ProfileScreen() {
 
   const canSave = form.displayName.trim().length > 0 && form.username.trim().length > 0 && !isLoading;
 
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+
+  const nav = useNavigation<Nav>();
+
   const updateForm = (field: keyof ProfileFormState, value: string) => {
     clearError();
     setNotice(null);
@@ -86,6 +107,29 @@ export function ProfileScreen() {
       return;
     }
   };
+
+  useEffect(() => {
+    // load user's posts for grid
+    if (!user) return;
+    let mounted = true;
+    setPostsLoading(true);
+    getUserPosts(user.id, { maxResults: 100 })
+      .then((res) => {
+        if (!mounted) return;
+        setPosts(res);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setPosts([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setPostsLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   if (!user) {
     return (
@@ -242,11 +286,39 @@ export function ProfileScreen() {
           )}
 
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent posts</Text>
-          <EmptyState
-            icon={<ImagePlus size={24} color={palette.primary} />}
-            title="Belum ada postingan"
-            message="Post milik user akan tampil setelah fitur upload dan feed disambungkan."
-          />
+          {/* Recent posts grid */}
+          {postsLoading ? (
+            <View style={{ paddingVertical: 12 }}>
+              <ActivityIndicator color={palette.primary} />
+            </View>
+          ) : posts.length === 0 ? (
+            <EmptyState
+              icon={<ImagePlus size={24} color={palette.primary} />}
+              title="Belum ada postingan"
+              message="Post milik user akan tampil setelah fitur upload dan feed disambungkan."
+            />
+          ) : (
+            <FlatList
+              data={posts}
+              keyExtractor={(item) => item.id}
+              numColumns={NUM_COLUMNS}
+              columnWrapperStyle={styles.gridRow}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => nav.navigate('PostDetail', { postId: item.id })}
+                  style={styles.gridTile}
+                >
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.gridImage} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.gridFallback, { backgroundColor: palette.surface }]}>
+                      <Text numberOfLines={2} style={{ color: palette.text, fontWeight: '700' }}>{item.caption}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              )}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -384,5 +456,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 18,
     fontWeight: '900',
+  },
+
+  // grid
+  gridRow: {
+    gap: GRID_GAP,
+    marginBottom: GRID_GAP,
+  },
+  gridTile: {
+    width: TILE_SIZE,
+    height: TILE_SIZE,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
   },
 });

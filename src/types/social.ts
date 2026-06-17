@@ -55,3 +55,12 @@ export type CommentDoc = {
   text: string;
   createdAt: unknown;
 };
+
+export type StoryDoc = {
+  authorId: string;
+  imageUrl: string;
+  caption: string;
+  createdAt: unknown;
+  expiresAt: unknown;
+  viewedBy: string[];
+};
