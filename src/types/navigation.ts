@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList> | undefined;
   Main: NavigatorScreenParams<MainDrawerParamList> | undefined;
   Notifications: undefined;
+  CreateStory: undefined;
   PostDetail: { postId: string };
   StoryViewer: { userId: string };
   PhotoViewer: { imageUrl: string; alt?: string };

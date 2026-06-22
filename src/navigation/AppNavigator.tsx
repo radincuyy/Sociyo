@@ -38,6 +38,7 @@ import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { AnimationCatalogScreen } from '../screens/catalog/AnimationCatalogScreen';
 import { PostDetailScreen } from '../screens/feed/PostDetailScreen';
+import { CreateStoryScreen } from '../screens/story/CreateStoryScreen';
 import { StoryViewerScreen } from '../screens/story/StoryViewerScreen';
 import { PhotoViewerScreen } from '../screens/media/PhotoViewerScreen';
 
@@ -280,6 +281,7 @@ export function AppNavigator() {
           <>
             <RootStack.Screen name="Main" component={MainDrawer} />
             <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+            <RootStack.Screen name="CreateStory" component={CreateStoryScreen} />
             <RootStack.Screen name="PostDetail" component={PostDetailScreen} />
             <RootStack.Screen name="StoryViewer" component={StoryViewerScreen} />
             <RootStack.Screen name="PhotoViewer" component={PhotoViewerScreen} />

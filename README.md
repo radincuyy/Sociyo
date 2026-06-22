@@ -40,6 +40,7 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
+EXPO_PUBLIC_EAS_PROJECT_ID=
 ```
 
 Untuk Google Sign-In, aktifkan provider Google di Firebase Authentication, lalu isi
@@ -48,11 +49,26 @@ buat OAuth Client tipe Android dengan package `com.radincuyy.sociyo` dan SHA-1 d
 project ini, lalu gunakan development build karena native Google Sign-In tidak tersedia
 di Expo Go.
 
-## Fokus Minggu 13
+Untuk Expo push notifications, isi `EXPO_PUBLIC_EAS_PROJECT_ID` dari konfigurasi
+project EAS. Setelah menambahkan plugin `expo-notifications`, rebuild development
+build agar konfigurasi native diterapkan.
 
-- Project Expo sudah dibuat.
-- Struktur folder `src` sudah disiapkan.
-- Navigasi Stack + Tab + Drawer sudah tersedia.
-- Auth Firebase sudah tersedia untuk login, register, dan sesi user.
-- Feed, story, profile, search, create post, notifications, settings sudah berupa skeleton.
-- Reanimated dan Gesture Handler sudah mulai dipakai untuk katalog animasi awal.
+## Progress Saat Ini
+
+### Selesai
+
+- Authentication email/password, Google Sign-In, reset password, dan sesi persisten.
+- Profile CRUD, navigation Stack + Tab + Drawer, dan dark/light theme.
+- Create/read/delete post dengan Firebase Storage dan Firestore.
+- Feed paginated, infinite scroll, like, comment, search user, dan explore grid.
+- Follow/unfollow dari hasil pencarian pengguna.
+- Story upload 24 jam, story ring, progress viewer, tap navigation, swipe, dan pause.
+- Photo viewer dengan pinch, pan, double-tap zoom, dan swipe dismiss.
+- Registrasi izin notifikasi dan Expo push token ke profil Firestore.
+
+### Berikutnya
+
+- Menampilkan aktivitas notifikasi dari backend dan mengirim push notification.
+- Reply story dengan bottom sheet.
+- Custom animated pull-to-refresh dan animasi bottom tab.
+- Offline cache, performance profiling, APK, dan dokumentasi final.

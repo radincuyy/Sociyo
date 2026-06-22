@@ -8,6 +8,7 @@ import { useAuthStore } from './useAuthStore';
 
 type FollowState = {
   followMap: Record<string, boolean>;
+  pendingMap: Record<string, boolean>;
 
   checkFollow: (targetUserId: string) => Promise<boolean>;
   toggleFollow: (targetUserId: string) => Promise<void>;
@@ -19,6 +20,7 @@ function getCurrentUserId() {
 
 export const useFollowStore = create<FollowState>((set, get) => ({
   followMap: {},
+  pendingMap: {},
 
   checkFollow: async (targetUserId) => {
     const userId = getCurrentUserId();
@@ -37,18 +39,39 @@ export const useFollowStore = create<FollowState>((set, get) => ({
   toggleFollow: async (targetUserId) => {
     const userId = getCurrentUserId();
     if (!userId || userId === targetUserId) return;
+    if (get().pendingMap[targetUserId]) return;
 
     const currentlyFollowing = get().followMap[targetUserId] ?? false;
 
     set((state) => ({
       followMap: { ...state.followMap, [targetUserId]: !currentlyFollowing },
+      pendingMap: { ...state.pendingMap, [targetUserId]: true },
     }));
 
     try {
-      await toggleFollowService(userId, targetUserId);
+      const isFollowing = await toggleFollowService(userId, targetUserId);
+      set((state) => ({
+        followMap: { ...state.followMap, [targetUserId]: isFollowing },
+        pendingMap: { ...state.pendingMap, [targetUserId]: false },
+      }));
+
+      if (isFollowing !== currentlyFollowing) {
+        useAuthStore.setState((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                followingCount: Math.max(
+                  0,
+                  state.user.followingCount + (isFollowing ? 1 : -1),
+                ),
+              }
+            : null,
+        }));
+      }
     } catch {
       set((state) => ({
         followMap: { ...state.followMap, [targetUserId]: currentlyFollowing },
+        pendingMap: { ...state.pendingMap, [targetUserId]: false },
       }));
     }
   },

@@ -126,7 +126,10 @@ export function FeedScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.storyList}
         ListHeaderComponent={
-          <Pressable style={styles.storyItem} onPress={() => {}}>
+          <Pressable
+            style={styles.storyItem}
+            onPress={() => navigation.navigate('CreateStory')}
+          >
             <View style={[styles.storyRing, { borderColor: palette.primary }]}>
               <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}>
                 <PlusCircle size={20} color={palette.primary} />

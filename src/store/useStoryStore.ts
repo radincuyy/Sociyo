@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { useAuthStore } from './useAuthStore';
 import {
+  createStory as createStoryService,
   getStoryGroups as getStoryGroupsService,
   markStoryViewed as markStoryViewedService,
 } from '../services/storyService';
@@ -10,7 +11,10 @@ import type { StoryGroup } from '../types/social';
 type StoryState = {
   groups: StoryGroup[];
   loading: boolean;
+  creating: boolean;
+  error: string | null;
   fetchStories: () => Promise<void>;
+  createStory: (imageUri: string, caption: string) => Promise<string>;
   markViewed: (storyId: string) => Promise<void>;
 };
 
@@ -21,18 +25,40 @@ function getCurrentUserId() {
 export const useStoryStore = create<StoryState>((set, get) => ({
   groups: [],
   loading: false,
+  creating: false,
+  error: null,
 
   fetchStories: async () => {
     if (get().loading) return;
 
-    set({ loading: true });
+    set({ loading: true, error: null });
 
     try {
       const userId = getCurrentUserId();
       const groups = await getStoryGroupsService(userId ?? undefined);
       set({ groups, loading: false });
     } catch {
-      set({ loading: false });
+      set({ loading: false, error: 'Gagal memuat story.' });
+    }
+  },
+
+  createStory: async (imageUri, caption) => {
+    const userId = getCurrentUserId();
+
+    if (!userId) {
+      throw new Error('Sesi login tidak ditemukan.');
+    }
+
+    set({ creating: true, error: null });
+
+    try {
+      const storyId = await createStoryService(userId, imageUri, caption);
+      set({ creating: false });
+      await get().fetchStories();
+      return storyId;
+    } catch (error) {
+      set({ creating: false, error: 'Gagal membuat story.' });
+      throw error;
     }
   },
 
