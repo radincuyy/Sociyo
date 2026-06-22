@@ -12,13 +12,22 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import type { StoryGroup } from '../../types/social';
 
 import { AnimatedPostCard } from '../../components/AnimatedPostCard';
+import { AnimatedRefreshIndicator } from '../../components/AnimatedRefreshIndicator';
 import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
 import { usePostStore } from '../../store/usePostStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useStoryStore } from '../../store/useStoryStore';
 import { colors } from '../../theme/colors';
@@ -46,20 +55,55 @@ function StoryAvatarItem({ group, palette, onPress }: { group: StoryGroup; palet
 
   return (
     <Pressable onPress={onPress} style={styles.storyItem}>
-      <Animated.View style={[
-        styles.storyRing,
-        group.hasUnviewed ? ringStyle : { borderColor: 'rgba(255,255,255,0.18)' },
-      ]}>
-        {group.avatarUrl ? (
-          <Image source={{ uri: group.avatarUrl }} style={styles.storyAvatar} contentFit="cover" />
+      <View style={styles.storyRing}>
+        {group.hasUnviewed ? (
+          <Animated.View style={[styles.storyGradientWrap, ringStyle]}>
+            <LinearGradient
+              colors={[
+                palette.primary,
+                palette.accent,
+                palette.warning,
+                palette.primary,
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.storyGradient}
+            />
+          </Animated.View>
         ) : (
-          <View style={[styles.storyAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
-            <Text style={[styles.storyAvatarLetter, { color: palette.text }]}>
-              {group.author.slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+          <View
+            style={[
+              styles.storyViewedRing,
+              { borderColor: palette.border },
+            ]}
+          />
         )}
-      </Animated.View>
+        <View
+          style={[
+            styles.storyAvatarFrame,
+            { backgroundColor: palette.background },
+          ]}
+        >
+          {group.avatarUrl ? (
+            <Image
+              source={{ uri: group.avatarUrl }}
+              style={styles.storyAvatar}
+              contentFit="cover"
+            />
+          ) : (
+            <View
+              style={[
+                styles.storyAvatarFallback,
+                { backgroundColor: palette.surfaceMuted },
+              ]}
+            >
+              <Text style={[styles.storyAvatarLetter, { color: palette.text }]}>
+                {group.author.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -80,6 +124,8 @@ export function FeedScreen() {
 
   const groups = useStoryStore((s) => s.groups);
   const fetchStories = useStoryStore((s) => s.fetchStories);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const pullDistance = useSharedValue(0);
 
   useEffect(() => {
     void fetchPosts();
@@ -87,9 +133,9 @@ export function FeedScreen() {
     void fetchStories();
   }, [fetchPosts, fetchStories]);
 
-  const handleRefresh = useCallback(() => {
-    void refreshPosts();
-  }, [refreshPosts]);
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refreshPosts(), fetchStories()]);
+  }, [fetchStories, refreshPosts]);
 
   const handleLoadMore = useCallback(() => {
     if (!isLoading && hasMore) {
@@ -130,8 +176,8 @@ export function FeedScreen() {
             style={styles.storyItem}
             onPress={() => navigation.navigate('CreateStory')}
           >
-            <View style={[styles.storyRing, { borderColor: palette.primary }]}>
-              <View style={[styles.storyAvatar, { alignItems: 'center', justifyContent: 'center' }]}>
+            <View style={[styles.storyRing, styles.createStoryRing, { borderColor: palette.primary }]}>
+              <View style={[styles.storyAvatar, styles.createStoryAvatar, { backgroundColor: palette.background }]}>
                 <PlusCircle size={20} color={palette.primary} />
               </View>
             </View>
@@ -180,6 +226,12 @@ export function FeedScreen() {
     );
   }, [isLoading, palette]);
 
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      pullDistance.value = Math.max(0, -event.contentOffset.y);
+    },
+  });
+
   return (
     <Screen padded={false}>
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
@@ -197,30 +249,51 @@ export function FeedScreen() {
           style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Bell size={22} color={palette.text} />
+          {unreadCount > 0 ? (
+            <View style={[styles.notificationBadge, { backgroundColor: palette.accent }]}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          ) : null}
         </Pressable>
       </View>
 
       {renderStoryHeader()}
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={palette.primary}
-            colors={[palette.primary]}
-          />
-        }
-      />
+      <View style={styles.feedListWrap}>
+        <AnimatedRefreshIndicator
+          refreshing={isRefreshing}
+          pullDistance={pullDistance}
+          color={palette.primary}
+          backgroundColor={palette.surface}
+          borderColor={palette.border}
+        />
+        <Animated.FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={renderPost}
+          contentContainerStyle={posts.length === 0 ? styles.emptyContainer : styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => {
+                void handleRefresh();
+              }}
+              tintColor="transparent"
+              colors={['transparent']}
+              progressBackgroundColor="transparent"
+            />
+          }
+        />
+      </View>
     </Screen>
   );
 }
@@ -235,6 +308,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   iconButton: {
+    position: 'relative',
     width: 40,
     height: 40,
     alignItems: 'center',
@@ -243,6 +317,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '900',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 1,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  feedListWrap: {
+    flex: 1,
   },
   listContent: {
     padding: 16,
@@ -293,26 +387,60 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyGradientWrap: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 32,
+    overflow: 'hidden',
+  },
+  storyGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  storyViewedRing: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 32,
+    borderWidth: 2,
+  },
+  storyAvatarFrame: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },
   storyAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     overflow: 'hidden',
   },
   storyAvatarFallback: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
   storyAvatarLetter: {
     fontSize: 16,
     fontWeight: '900',
+  },
+  createStoryRing: {
+    borderWidth: 2,
+  },
+  createStoryAvatar: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

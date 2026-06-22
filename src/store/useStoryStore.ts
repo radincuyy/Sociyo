@@ -5,6 +5,7 @@ import {
   createStory as createStoryService,
   getStoryGroups as getStoryGroupsService,
   markStoryViewed as markStoryViewedService,
+  sendStoryReply as sendStoryReplyService,
 } from '../services/storyService';
 import type { StoryGroup } from '../types/social';
 
@@ -12,10 +13,18 @@ type StoryState = {
   groups: StoryGroup[];
   loading: boolean;
   creating: boolean;
+  replying: boolean;
   error: string | null;
+  replyError: string | null;
   fetchStories: () => Promise<void>;
   createStory: (imageUri: string, caption: string) => Promise<string>;
   markViewed: (storyId: string) => Promise<void>;
+  sendReply: (
+    storyId: string,
+    recipientId: string,
+    text: string,
+  ) => Promise<string>;
+  clearReplyError: () => void;
 };
 
 function getCurrentUserId() {
@@ -26,7 +35,9 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   groups: [],
   loading: false,
   creating: false,
+  replying: false,
   error: null,
+  replyError: null,
 
   fetchStories: async () => {
     if (get().loading) return;
@@ -83,4 +94,36 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       set({ groups: original });
     }
   },
+
+  sendReply: async (storyId, recipientId, text) => {
+    const userId = getCurrentUserId();
+
+    if (!userId) {
+      throw new Error('Sesi login tidak ditemukan.');
+    }
+
+    set({ replying: true, replyError: null });
+
+    try {
+      const replyId = await sendStoryReplyService({
+        storyId,
+        authorId: userId,
+        recipientId,
+        text,
+      });
+      set({ replying: false });
+      return replyId;
+    } catch (error) {
+      set({
+        replying: false,
+        replyError:
+          error instanceof Error
+            ? error.message
+            : 'Gagal mengirim balasan story.',
+      });
+      throw error;
+    }
+  },
+
+  clearReplyError: () => set({ replyError: null }),
 }));

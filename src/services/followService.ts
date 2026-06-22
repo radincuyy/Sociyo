@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 
 import { firestore } from './firebase';
+import { createActivityNotification } from './activityService';
 
 const USERS = 'users';
 
@@ -39,6 +40,22 @@ export async function followUser(currentUserId: string, targetUserId: string): P
 
   await updateDoc(currentUserRef, { followingCount: increment(1) });
   await updateDoc(targetUserRef, { followersCount: increment(1) });
+
+  try {
+    await createActivityNotification({
+      recipientId: targetUserId,
+      actorId: currentUserId,
+      type: 'follow',
+      entityId: currentUserId,
+      preview: null,
+    });
+  } catch (error) {
+    console.warn('[follow] activity notification failed', {
+      currentUserId,
+      targetUserId,
+      error,
+    });
+  }
 }
 
 // Unfollow user

@@ -62,13 +62,22 @@ build agar konfigurasi native diterapkan.
 - Create/read/delete post dengan Firebase Storage dan Firestore.
 - Feed paginated, infinite scroll, like, comment, search user, dan explore grid.
 - Follow/unfollow dari hasil pencarian pengguna.
-- Story upload 24 jam, story ring, progress viewer, tap navigation, swipe, dan pause.
+- Story upload 24 jam, story ring, progress viewer, tap navigation, swipe, pause,
+  slide transition, dan reply bottom sheet.
 - Photo viewer dengan pinch, pan, double-tap zoom, dan swipe dismiss.
+- Custom animated pull-to-refresh, staggered feed card, dan animasi bottom tab.
 - Registrasi izin notifikasi dan Expo push token ke profil Firestore.
+- Aktivitas notifikasi real-time untuk follow, like, comment, dan reply story.
+
+### Status Timeline
+
+- Minggu 13 Foundation Sprint: selesai.
+- Minggu 14 Core Features Sprint: selesai untuk alur aplikasi dan setup push token.
+- Minggu 14 Feature-Specific Sprint: tiga fitur unggulan sudah dapat didemokan,
+  yaitu Immersive Story Viewer, Animated Feed, dan Interactive Photo Viewer.
 
 ### Berikutnya
 
-- Menampilkan aktivitas notifikasi dari backend dan mengirim push notification.
-- Reply story dengan bottom sheet.
-- Custom animated pull-to-refresh dan animasi bottom tab.
-- Offline cache, performance profiling, APK, dan dokumentasi final.
+- Menambahkan server sender untuk remote push notification saat aplikasi tidak aktif.
+- Menyelesaikan smooth navigation transition dan keyboard-aware comment animation.
+- Offline cache, performance profiling, APK, dan dokumentasi final pada Minggu 15.

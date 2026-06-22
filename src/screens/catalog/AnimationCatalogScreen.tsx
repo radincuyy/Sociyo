@@ -26,9 +26,29 @@ const animations = [
     hook: 'withTiming, cancelAnimation',
   },
   {
+    name: 'Story slide and fade transition',
+    library: 'react-native-reanimated',
+    hook: 'useAnimatedStyle, withTiming',
+  },
+  {
+    name: 'Story reply bottom sheet',
+    library: 'react-native-reanimated',
+    hook: 'useSharedValue, withSpring, withTiming',
+  },
+  {
     name: 'Photo viewer pinch and pan',
     library: 'react-native-reanimated + react-native-gesture-handler',
     hook: 'Gesture.Simultaneous, useAnimatedStyle',
+  },
+  {
+    name: 'Custom pull-to-refresh indicator',
+    library: 'react-native-reanimated',
+    hook: 'useAnimatedScrollHandler, interpolate, withRepeat',
+  },
+  {
+    name: 'Bottom tab active feedback',
+    library: 'react-native-reanimated',
+    hook: 'useSharedValue, useAnimatedStyle, withSpring',
   },
 ];
 
@@ -41,8 +61,8 @@ export function AnimationCatalogScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Text style={[styles.title, { color: palette.text }]}>Animation Catalog</Text>
         <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-          Draft deliverable D1-2. Setiap animasi dicatat sejak awal agar siap dibawa ke
-          dokumentasi final.
+          Deliverable D1-2 mencatat nama animasi, library, dan hook utama yang
+          digunakan pada pengalaman animations-first Sociyo.
         </Text>
         <View style={styles.list}>
           {animations.map((animation) => (

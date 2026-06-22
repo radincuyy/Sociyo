@@ -13,11 +13,17 @@ import {
 } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, ListVideo, LogOut, MessageCircle, PlusCircle, Search, Settings } from 'lucide-react-native';
-import { useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNotificationStore } from '../store/useNotificationStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { colors } from '../theme/colors';
 import type {
@@ -84,6 +90,18 @@ function AuthNavigator() {
 function MainTabs() {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const subscribeToActivities = useNotificationStore(
+    (state) => state.subscribeToActivities,
+  );
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    return subscribeToActivities(userId);
+  }, [subscribeToActivities, userId]);
 
   return (
     <Tab.Navigator
@@ -103,11 +121,25 @@ function MainTabs() {
         },
         tabBarIcon: ({ color, focused, size }) => {
           const iconSize = Math.max(size, 21);
-          if (route.name === 'Feed') return <Home size={iconSize} color={color} />;
-          if (route.name === 'Messages') return <MessageCircle size={iconSize} color={color} />;
-          if (route.name === 'Create') return <PlusCircle size={iconSize + 2} color={color} />;
-          if (route.name === 'Search') return <Search size={iconSize} color={color} />;
-          return <ProfileTabIcon focused={focused} size={iconSize} />;
+          let icon: ReactNode;
+
+          if (route.name === 'Feed') {
+            icon = <Home size={iconSize} color={color} />;
+          } else if (route.name === 'Messages') {
+            icon = <MessageCircle size={iconSize} color={color} />;
+          } else if (route.name === 'Create') {
+            icon = <PlusCircle size={iconSize + 2} color={color} />;
+          } else if (route.name === 'Search') {
+            icon = <Search size={iconSize} color={color} />;
+          } else {
+            icon = <ProfileTabIcon focused={focused} size={iconSize} />;
+          }
+
+          return (
+            <AnimatedTabIcon focused={focused} activeColor={palette.primary}>
+              {icon}
+            </AnimatedTabIcon>
+          );
         },
       })}
     >
@@ -117,6 +149,49 @@ function MainTabs() {
       <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
+  );
+}
+
+type AnimatedTabIconProps = {
+  focused: boolean;
+  activeColor: string;
+  children: ReactNode;
+};
+
+function AnimatedTabIcon({
+  focused,
+  activeColor,
+  children,
+}: AnimatedTabIconProps) {
+  const activeProgress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    activeProgress.value = withSpring(focused ? 1 : 0, {
+      damping: 14,
+      stiffness: 210,
+      mass: 0.7,
+    });
+  }, [activeProgress, focused]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: activeProgress.value * -2 },
+      { scale: 1 + activeProgress.value * 0.14 },
+    ],
+  }));
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: activeProgress.value,
+    transform: [{ scale: activeProgress.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.animatedTabIcon, iconStyle]}>
+      {children}
+      <Animated.View
+        style={[styles.activeTabDot, { backgroundColor: activeColor }, dotStyle]}
+      />
+    </Animated.View>
   );
 }
 
@@ -320,6 +395,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 18,
     padding: 1,
+  },
+  animatedTabIcon: {
+    width: 36,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeTabDot: {
+    position: 'absolute',
+    bottom: 0,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   drawerContent: {
     flex: 1,

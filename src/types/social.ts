@@ -64,3 +64,17 @@ export type StoryDoc = {
   expiresAt: unknown;
   viewedBy: string[];
 };
+
+export type ActivityNotificationType = 'follow' | 'like' | 'comment' | 'story_reply';
+
+export type ActivityNotification = {
+  id: string;
+  type: ActivityNotificationType;
+  actorId: string;
+  actorName: string;
+  actorAvatarUrl: string | null;
+  entityId: string | null;
+  preview: string | null;
+  read: boolean;
+  createdAt: string;
+};
