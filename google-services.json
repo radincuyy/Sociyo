@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "916372135949",
+    "firebase_url": "https://sociyo-8b7c9-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "sociyo-8b7c9",
+    "storage_bucket": "sociyo-8b7c9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:916372135949:android:0119aa1a1d9c90602e3544",
+        "android_client_info": {
+          "package_name": "com.radincuyy.sociyo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "916372135949-5jirpb94h42rc8r17outbpg1915ji5ra.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiU_0p7Umasl2vcAgFr5lYJ_cAqIX8NMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "916372135949-5jirpb94h42rc8r17outbpg1915ji5ra.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
