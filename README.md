@@ -53,6 +53,15 @@ Untuk Expo push notifications, isi `EXPO_PUBLIC_EAS_PROJECT_ID` dari konfigurasi
 project EAS. Setelah menambahkan plugin `expo-notifications`, rebuild development
 build agar konfigurasi native diterapkan.
 
+Untuk Android FCM, unduh `google-services.json` dari aplikasi Android Firebase
+dengan package `com.radincuyy.sociyo`, letakkan di root project, lalu pastikan
+`android.googleServicesFile` pada `app.json` mengarah ke file tersebut. Rebuild
+development build setiap kali konfigurasi native Firebase berubah.
+
+Pengiriman remote push melalui Expo juga memerlukan kredensial FCM V1 pada
+project EAS. Akun penerima harus menekan **Aktifkan notifikasi** minimal sekali
+agar `expoPushToken` tersimpan pada profil Firestore.
+
 ## Progress Saat Ini
 
 ### Selesai
@@ -67,7 +76,9 @@ build agar konfigurasi native diterapkan.
 - Photo viewer dengan pinch, pan, double-tap zoom, dan swipe dismiss.
 - Custom animated pull-to-refresh, staggered feed card, dan animasi bottom tab.
 - Registrasi izin notifikasi dan Expo push token ke profil Firestore.
-- Aktivitas notifikasi real-time untuk follow, like, comment, dan reply story.
+- Aktivitas notifikasi real-time untuk follow, like, dan comment.
+- Reply story masuk ke DM real-time, tampil pada tab Pesan, dan mengirim Expo push
+  notification ke perangkat penerima yang sudah mengaktifkan notifikasi.
 
 ### Status Timeline
 
@@ -78,6 +89,6 @@ build agar konfigurasi native diterapkan.
 
 ### Berikutnya
 
-- Menambahkan server sender untuk remote push notification saat aplikasi tidak aktif.
+- Melakukan smoke test push notification dan DM pada dua akun.
 - Menyelesaikan smooth navigation transition dan keyboard-aware comment animation.
 - Offline cache, performance profiling, APK, dan dokumentasi final pada Minggu 15.
