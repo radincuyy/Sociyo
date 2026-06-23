@@ -153,7 +153,11 @@ export function subscribeActivityNotifications(
     notificationsQuery,
     (snapshot) => {
       try {
-        onData(snapshot.docs.map(documentToActivity));
+        onData(
+          snapshot.docs
+            .map(documentToActivity)
+            .filter((activity) => activity.type !== 'story_reply'),
+        );
       } catch (error) {
         onError(
           error instanceof Error

@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   Heart,
   MessageCircle,
-  Reply,
   ShieldCheck,
   UserPlus,
 } from 'lucide-react-native';
@@ -77,9 +76,7 @@ function getActivityCopy(activity: ActivityNotification): string {
       : 'mengomentari postingan Anda.';
   }
 
-  return activity.preview
-    ? `membalas story Anda: "${activity.preview}"`
-    : 'membalas story Anda.';
+  return 'mengirim aktivitas baru.';
 }
 
 function getActivityIcon(
@@ -98,7 +95,7 @@ function getActivityIcon(
     return <MessageCircle size={17} color={palette.primary} />;
   }
 
-  return <Reply size={17} color={palette.success} />;
+  return <MessageCircle size={17} color={palette.success} />;
 }
 
 export function NotificationsScreen({
@@ -354,7 +351,7 @@ export function NotificationsScreen({
               <EmptyState
                 icon={<BellRing size={24} color={palette.primary} />}
                 title="Belum ada notifikasi"
-                message="Like, komentar, follow, dan reply story akan muncul di sini."
+                message="Like, komentar, dan follow akan muncul di sini. Balasan story masuk ke Pesan."
               />
             </View>
           )

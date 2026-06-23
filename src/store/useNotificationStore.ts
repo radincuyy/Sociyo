@@ -30,6 +30,7 @@ type NotificationState = {
   subscribeToActivities: (userId: string) => () => void;
   markAllRead: (userId: string) => Promise<void>;
   clearError: () => void;
+  resetSession: () => void;
 };
 
 function getNotificationErrorMessage(error: unknown) {
@@ -159,4 +160,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  resetSession: () =>
+    set({
+      token: null,
+      permissionStatus: null,
+      isRegistering: false,
+      activities: [],
+      unreadCount: 0,
+      isLoadingActivities: false,
+      isMarkingRead: false,
+      error: null,
+      activitiesError: null,
+    }),
 }));

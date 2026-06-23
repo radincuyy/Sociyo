@@ -15,7 +15,7 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 
 import { firestore, firebaseStorage } from './firebase';
-import { createActivityNotification } from './activityService';
+import { sendStoryReplyMessage } from './messageService';
 import type { Story, StoryGroup, StoryDoc } from '../types/social';
 
 const STORIES_COLLECTION = 'stories';
@@ -40,10 +40,15 @@ async function getAuthorInfo(authorId: string) {
 
     return {
       author: getStringField(data, 'displayName', 'Pengguna'),
+      username: getStringField(data, 'username', authorId.slice(0, 8)),
       avatarUrl: getStringField(data, 'avatarUrl') || null,
     };
   } catch {
-    return { author: 'Pengguna', avatarUrl: null };
+    return {
+      author: 'Pengguna',
+      username: authorId.slice(0, 8),
+      avatarUrl: null,
+    };
   }
 }
 
@@ -153,6 +158,7 @@ export async function getStoryGroups(currentUserId?: string): Promise<StoryGroup
     groups.push({
       userId: authorId,
       author: authorInfo.author,
+      username: authorInfo.username,
       avatarUrl: authorInfo.avatarUrl || null,
       stories,
       hasUnviewed,
@@ -170,12 +176,13 @@ export async function markStoryViewed(storyId: string, userId: string): Promise<
 
 type SendStoryReplyInput = {
   storyId: string;
+  storyImageUrl: string | null;
   authorId: string;
   recipientId: string;
   text: string;
 };
 
-export async function sendStoryReply(input: SendStoryReplyInput): Promise<string> {
+export async function sendStoryReply(input: SendStoryReplyInput) {
   const cleanText = input.text.trim();
 
   if (!cleanText) {
@@ -193,32 +200,11 @@ export async function sendStoryReply(input: SendStoryReplyInput): Promise<string
     throw new Error(`Story ${input.storyId} tidak ditemukan.`);
   }
 
-  const replyRef = await addDoc(
-    collection(firestore, STORIES_COLLECTION, input.storyId, 'replies'),
-    {
-      authorId: input.authorId,
-      recipientId: input.recipientId,
-      text: cleanText,
-      createdAt: serverTimestamp(),
-    },
-  );
-
-  try {
-    await createActivityNotification({
-      recipientId: input.recipientId,
-      actorId: input.authorId,
-      type: 'story_reply',
-      entityId: input.storyId,
-      preview: cleanText,
-    });
-  } catch (error) {
-    console.warn('[story-reply] activity notification failed', {
-      storyId: input.storyId,
-      authorId: input.authorId,
-      recipientId: input.recipientId,
-      error,
-    });
-  }
-
-  return replyRef.id;
+  return sendStoryReplyMessage({
+    storyId: input.storyId,
+    storyImageUrl: input.storyImageUrl,
+    senderId: input.authorId,
+    recipientId: input.recipientId,
+    text: cleanText,
+  });
 }

@@ -8,6 +8,7 @@ import {
   sendStoryReply as sendStoryReplyService,
 } from '../services/storyService';
 import type { StoryGroup } from '../types/social';
+import type { SendMessageResult } from '../types/social';
 
 type StoryState = {
   groups: StoryGroup[];
@@ -21,9 +22,10 @@ type StoryState = {
   markViewed: (storyId: string) => Promise<void>;
   sendReply: (
     storyId: string,
+    storyImageUrl: string | null,
     recipientId: string,
     text: string,
-  ) => Promise<string>;
+  ) => Promise<SendMessageResult>;
   clearReplyError: () => void;
 };
 
@@ -95,7 +97,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     }
   },
 
-  sendReply: async (storyId, recipientId, text) => {
+  sendReply: async (storyId, storyImageUrl, recipientId, text) => {
     const userId = getCurrentUserId();
 
     if (!userId) {
@@ -105,14 +107,15 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ replying: true, replyError: null });
 
     try {
-      const replyId = await sendStoryReplyService({
+      const result = await sendStoryReplyService({
         storyId,
+        storyImageUrl,
         authorId: userId,
         recipientId,
         text,
       });
       set({ replying: false });
-      return replyId;
+      return result;
     } catch (error) {
       set({
         replying: false,

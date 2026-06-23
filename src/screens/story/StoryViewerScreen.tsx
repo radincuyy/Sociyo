@@ -4,6 +4,7 @@ import { MessageCircle, Send, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -221,9 +222,26 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
     }
 
     try {
-      await sendReply(activeStory.id, group.userId, cleanReply);
+      const result = await sendReply(
+        activeStory.id,
+        activeStory.imageUrl ?? null,
+        group.userId,
+        cleanReply,
+      );
       setReplyText('');
       closeReplySheet();
+
+      if (result.pushDelivery === 'not_registered') {
+        Alert.alert(
+          'Pesan terkirim',
+          'Balasan sudah masuk ke Pesan, tetapi penerima belum mengaktifkan notifikasi perangkat.',
+        );
+      } else if (result.pushDelivery === 'failed') {
+        Alert.alert(
+          'Pesan terkirim',
+          'Balasan sudah masuk ke Pesan, tetapi push notification gagal dikirim.',
+        );
+      }
     } catch {
       return;
     }
