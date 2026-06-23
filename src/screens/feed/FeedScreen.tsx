@@ -1,6 +1,6 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell, Menu, RefreshCw, PlusCircle } from 'lucide-react-native';
+import { Bell, Menu, Plus, RefreshCw } from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
@@ -24,8 +24,10 @@ import type { StoryGroup } from '../../types/social';
 
 import { AnimatedPostCard } from '../../components/AnimatedPostCard';
 import { AnimatedRefreshIndicator } from '../../components/AnimatedRefreshIndicator';
+import { Avatar } from '../../components/Avatar';
 import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
+import { useAuthStore } from '../../store/useAuthStore';
 import { usePostStore } from '../../store/usePostStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -104,7 +106,80 @@ function StoryAvatarItem({ group, palette, onPress }: { group: StoryGroup; palet
           )}
         </View>
       </View>
+      <Text
+        style={[styles.storyLabel, { color: palette.text }]}
+        numberOfLines={1}
+      >
+        {group.username}
+      </Text>
     </Pressable>
+  );
+}
+
+type OwnStoryItemProps = {
+  palette: Palette;
+  displayName: string;
+  username: string;
+  avatarUrl: string | null;
+  hasStory: boolean;
+  onOpenStory: () => void;
+  onCreateStory: () => void;
+};
+
+function OwnStoryItem({
+  palette,
+  displayName,
+  username,
+  avatarUrl,
+  hasStory,
+  onOpenStory,
+  onCreateStory,
+}: OwnStoryItemProps) {
+  return (
+    <View style={styles.storyItem}>
+      <View style={styles.ownStoryAvatarWrap}>
+        <Pressable
+          onPress={hasStory ? onOpenStory : onCreateStory}
+          style={({ pressed }) => [
+            styles.ownStoryAvatar,
+            {
+              borderColor: hasStory ? palette.primary : palette.border,
+              backgroundColor: palette.background,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <Avatar
+            displayName={displayName}
+            username={username}
+            avatarUrl={avatarUrl}
+            size={62}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={onCreateStory}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.addStoryBadge,
+            {
+              backgroundColor: palette.primary,
+              borderColor: palette.background,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <Plus size={17} color="#FFFFFF" strokeWidth={3} />
+        </Pressable>
+      </View>
+
+      <Text
+        style={[styles.storyLabel, { color: palette.text }]}
+        numberOfLines={1}
+      >
+        Cerita Anda
+      </Text>
+    </View>
   );
 }
 
@@ -112,6 +187,7 @@ export function FeedScreen() {
   const navigation = useNavigation<FeedNavigation>();
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const currentUser = useAuthStore((state) => state.user);
 
   const posts = usePostStore((state) => state.posts);
   const isLoading = usePostStore((state) => state.isLoading);
@@ -126,6 +202,12 @@ export function FeedScreen() {
   const fetchStories = useStoryStore((s) => s.fetchStories);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const pullDistance = useSharedValue(0);
+  const ownStoryGroup = groups.find(
+    (group) => group.userId === currentUser?.id,
+  );
+  const otherStoryGroups = groups.filter(
+    (group) => group.userId !== currentUser?.id,
+  );
 
   useEffect(() => {
     void fetchPosts();
@@ -164,24 +246,34 @@ export function FeedScreen() {
   );
 
   const renderStoryHeader = () => (
-    <View style={styles.storyHeaderWrap}>
+    <View
+      style={[
+        styles.storyHeaderWrap,
+        { borderBottomColor: palette.border },
+      ]}
+    >
       <FlatList
-        data={groups}
+        data={otherStoryGroups}
         horizontal
         keyExtractor={(g) => g.userId}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.storyList}
         ListHeaderComponent={
-          <Pressable
-            style={styles.storyItem}
-            onPress={() => navigation.navigate('CreateStory')}
-          >
-            <View style={[styles.storyRing, styles.createStoryRing, { borderColor: palette.primary }]}>
-              <View style={[styles.storyAvatar, styles.createStoryAvatar, { backgroundColor: palette.background }]}>
-                <PlusCircle size={20} color={palette.primary} />
-              </View>
-            </View>
-          </Pressable>
+          <OwnStoryItem
+            palette={palette}
+            displayName={currentUser?.displayName ?? 'Pengguna'}
+            username={currentUser?.username ?? ''}
+            avatarUrl={currentUser?.avatarUrl ?? null}
+            hasStory={Boolean(ownStoryGroup)}
+            onOpenStory={() => {
+              if (ownStoryGroup) {
+                navigation.navigate('StoryViewer', {
+                  userId: ownStoryGroup.userId,
+                });
+              }
+            }}
+            onCreateStory={() => navigation.navigate('CreateStory')}
+          />
         }
         renderItem={({ item }) => (
           <StoryAvatarItem
@@ -368,25 +460,26 @@ const styles = StyleSheet.create({
 
   // story header styles
   storyHeaderWrap: {
-    paddingVertical: 12,
-    paddingLeft: 16,
-    paddingRight: 8,
+    paddingTop: 12,
+    paddingBottom: 10,
+    paddingLeft: 12,
+    paddingRight: 4,
+    borderBottomWidth: 0.5,
   },
   storyList: {
     paddingRight: 16,
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
   },
   storyItem: {
-    width: 72,
+    width: 82,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
+    gap: 6,
   },
   storyRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -396,7 +489,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    borderRadius: 32,
+    borderRadius: 36,
     overflow: 'hidden',
   },
   storyGradient: {
@@ -409,26 +502,26 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    borderRadius: 32,
+    borderRadius: 36,
     borderWidth: 2,
   },
   storyAvatarFrame: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
     alignItems: 'center',
     justifyContent: 'center',
   },
   storyAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     overflow: 'hidden',
   },
   storyAvatarFallback: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -436,10 +529,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
-  createStoryRing: {
-    borderWidth: 2,
+  storyLabel: {
+    width: 82,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  createStoryAvatar: {
+  ownStoryAvatarWrap: {
+    width: 72,
+    height: 72,
+  },
+  ownStoryAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addStoryBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
