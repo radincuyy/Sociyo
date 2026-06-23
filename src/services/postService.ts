@@ -10,10 +10,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   startAfter,
   updateDoc,
   where,
+  writeBatch,
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
   type QueryConstraint,
@@ -273,15 +273,17 @@ export async function toggleLike(postId: string, userId: string): Promise<boolea
   }
 
   if (likeSnap.exists()) {
-    // Unlike
-    await deleteDoc(likeRef);
-    await updateDoc(postRef, { likesCount: increment(-1) });
+    const batch = writeBatch(firestore);
+    batch.delete(likeRef);
+    batch.update(postRef, { likesCount: increment(-1) });
+    await batch.commit();
     return false;
   }
 
-  // Like
-  await setDoc(likeRef, { createdAt: serverTimestamp() });
-  await updateDoc(postRef, { likesCount: increment(1) });
+  const batch = writeBatch(firestore);
+  batch.set(likeRef, { createdAt: serverTimestamp() });
+  batch.update(postRef, { likesCount: increment(1) });
+  await batch.commit();
 
   const postData = postSnap.data() as Record<string, unknown>;
   const recipientId = getStringField(postData, 'authorId');
