@@ -50,6 +50,16 @@ const animations = [
     library: 'react-native-reanimated',
     hook: 'useSharedValue, useAnimatedStyle, withSpring',
   },
+  {
+    name: 'Post image shared hero transition',
+    library: 'react-native-reanimated + React Navigation native stack',
+    hook: 'SharedTransition, sharedTransitionTag',
+  },
+  {
+    name: 'Keyboard-aware comment composer',
+    library: 'react-native-reanimated + react-native-safe-area-context',
+    hook: 'useAnimatedKeyboard, useAnimatedStyle, FadeInDown',
+  },
 ];
 
 export function AnimationCatalogScreen() {
