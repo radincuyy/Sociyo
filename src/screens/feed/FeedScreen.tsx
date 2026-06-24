@@ -1,6 +1,14 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell, Menu, Plus, RefreshCw } from 'lucide-react-native';
+import NetInfo from '@react-native-community/netinfo';
+import {
+  AlertTriangle,
+  Bell,
+  Menu,
+  Plus,
+  RefreshCw,
+  WifiOff,
+} from 'lucide-react-native';
 import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
@@ -35,6 +43,7 @@ import { useStoryStore } from '../../store/useStoryStore';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import type { Post } from '../../types/social';
+import { getPostImageTransitionTag } from '../../utils/postTransition';
 
 type FeedNavigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -193,10 +202,14 @@ export function FeedScreen() {
   const isLoading = usePostStore((state) => state.isLoading);
   const isRefreshing = usePostStore((state) => state.isRefreshing);
   const hasMore = usePostStore((state) => state.hasMore);
+  const isOffline = usePostStore((state) => state.isOffline);
+  const cacheUpdatedAt = usePostStore((state) => state.cacheUpdatedAt);
+  const feedError = usePostStore((state) => state.error);
   const fetchPosts = usePostStore((state) => state.fetchPosts);
   const refreshPosts = usePostStore((state) => state.refreshPosts);
   const loadMorePosts = usePostStore((state) => state.loadMorePosts);
   const toggleLike = usePostStore((state) => state.toggleLike);
+  const setOfflineStatus = usePostStore((state) => state.setOfflineStatus);
 
   const groups = useStoryStore((s) => s.groups);
   const fetchStories = useStoryStore((s) => s.fetchStories);
@@ -211,9 +224,21 @@ export function FeedScreen() {
 
   useEffect(() => {
     void fetchPosts();
-    // fetch stories as well
     void fetchStories();
   }, [fetchPosts, fetchStories]);
+
+  useEffect(() => {
+    return NetInfo.addEventListener((state) => {
+      const offline =
+        state.isConnected !== true || state.isInternetReachable === false;
+      const wasOffline = usePostStore.getState().isOffline;
+      setOfflineStatus(offline);
+
+      if (wasOffline && !offline) {
+        void refreshPosts();
+      }
+    });
+  }, [refreshPosts, setOfflineStatus]);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refreshPosts(), fetchStories()]);
@@ -230,7 +255,15 @@ export function FeedScreen() {
       <AnimatedPostCard
         post={item}
         index={index}
-        onOpen={() => navigation.navigate('PostDetail', { postId: item.id })}
+        onOpen={(imageAspectRatio) =>
+          navigation.navigate('PostDetail', {
+            postId: item.id,
+            imageAspectRatio,
+            sharedTransitionTag: item.imageUrl
+              ? getPostImageTransitionTag(item.id)
+              : undefined,
+          })
+        }
         onPhotoOpen={() => {
           if (item.imageUrl) {
             navigation.navigate('PhotoViewer', {
@@ -239,10 +272,21 @@ export function FeedScreen() {
             });
           }
         }}
+        onAvatarOpen={() => {
+          if (item.authorId === currentUser?.id) {
+            navigation.navigate('Main', {
+              screen: 'HomeTabs',
+              params: { screen: 'Profile' },
+            });
+            return;
+          }
+
+          navigation.navigate('UserProfile', { userId: item.authorId });
+        }}
         onLike={() => void toggleLike(item.id)}
       />
     ),
-    [navigation, toggleLike],
+    [currentUser?.id, navigation, toggleLike],
   );
 
   const renderStoryHeader = () => (
@@ -311,12 +355,12 @@ export function FeedScreen() {
       <View style={styles.centered}>
         <EmptyState
           icon={<RefreshCw size={24} color={palette.primary} />}
-          title="Belum ada postingan"
-          message="Buat postingan pertamamu di tab Create!"
+          title={feedError ? 'Feed belum tersedia' : 'Belum ada postingan'}
+          message={feedError ?? 'Buat postingan pertamamu di tab Create!'}
         />
       </View>
     );
-  }, [isLoading, palette]);
+  }, [feedError, isLoading, palette]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -352,6 +396,44 @@ export function FeedScreen() {
       </View>
 
       {renderStoryHeader()}
+
+      {isOffline ? (
+        <View
+          style={[
+            styles.offlineBanner,
+            {
+              backgroundColor: palette.warning,
+            },
+          ]}
+        >
+          <WifiOff size={16} color="#17202A" />
+          <Text style={styles.offlineBannerText}>
+            Offline
+            {cacheUpdatedAt
+              ? ` | cache ${new Date(cacheUpdatedAt).toLocaleTimeString('id-ID', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : ' | belum ada cache'}
+          </Text>
+        </View>
+      ) : null}
+
+      {feedError && posts.length > 0 ? (
+        <View
+          style={[
+            styles.feedWarning,
+            {
+              backgroundColor: palette.accentSoft,
+            },
+          ]}
+        >
+          <AlertTriangle size={15} color={palette.accent} />
+          <Text style={[styles.feedWarningText, { color: palette.accent }]}>
+            {feedError}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.feedListWrap}>
         <AnimatedRefreshIndicator
@@ -429,6 +511,35 @@ const styles = StyleSheet.create({
   },
   feedListWrap: {
     flex: 1,
+  },
+  offlineBanner: {
+    minHeight: 34,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  offlineBannerText: {
+    color: '#17202A',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  feedWarning: {
+    minHeight: 38,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  feedWarningText: {
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    textAlign: 'center',
   },
   listContent: {
     padding: 16,

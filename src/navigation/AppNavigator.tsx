@@ -46,6 +46,8 @@ import { SearchScreen } from '../screens/search/SearchScreen';
 import { CreatePostScreen } from '../screens/create/CreatePostScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { UserProfileScreen } from '../screens/profile/UserProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { AnimationCatalogScreen } from '../screens/catalog/AnimationCatalogScreen';
 import { PostDetailScreen } from '../screens/feed/PostDetailScreen';
@@ -460,6 +462,8 @@ export function AppNavigator() {
             <RootStack.Screen name="Main" component={MainDrawer} />
             <RootStack.Screen name="Notifications" component={NotificationsScreen} />
             <RootStack.Screen name="CreateStory" component={CreateStoryScreen} />
+            <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
+            <RootStack.Screen name="UserProfile" component={UserProfileScreen} />
             <RootStack.Screen name="MessageThread" component={MessageThreadScreen} />
             <RootStack.Screen name="PostDetail" component={PostDetailScreen} />
             <RootStack.Screen name="StoryViewer" component={StoryViewerScreen} />

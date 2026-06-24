@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { MessageParticipant } from './social';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -26,8 +27,17 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainDrawerParamList> | undefined;
   Notifications: undefined;
   CreateStory: undefined;
-  MessageThread: { threadId: string };
-  PostDetail: { postId: string };
+  EditProfile: undefined;
+  UserProfile: { userId: string };
+  MessageThread: {
+    threadId: string;
+    recipient?: MessageParticipant;
+  };
+  PostDetail: {
+    postId: string;
+    imageAspectRatio?: number;
+    sharedTransitionTag?: string;
+  };
   StoryViewer: { userId: string };
   PhotoViewer: { imageUrl: string; alt?: string };
 };

@@ -10,22 +10,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Keyboard,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Screen } from '../../components/Screen';
+import { useAuthStore } from '../../store/useAuthStore';
 import { usePostStore } from '../../store/usePostStore';
 import { fetchComments, postComment } from '../../store/usePostStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import type { Comment } from '../../types/social';
+import { postImageSharedTransition } from '../../utils/postTransition';
 
 type PostDetailProps = NativeStackScreenProps<RootStackParamList, 'PostDetail'>;
 
@@ -44,9 +50,11 @@ function timeAgo(dateStr: string): string {
 }
 
 export function PostDetailScreen({ route, navigation }: PostDetailProps) {
-  const { postId } = route.params;
+  const { postId, imageAspectRatio, sharedTransitionTag } = route.params;
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const safeAreaInsets = useSafeAreaInsets();
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
 
   const post = usePostStore((state) => state.posts.find((p) => p.id === postId));
   const toggleLike = usePostStore((state) => state.toggleLike);
@@ -55,33 +63,31 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
   const [loadingComments, setLoadingComments] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [sending, setSending] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [imgAspect, setImgAspect] = useState(1);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [inputHeight, setInputHeight] = useState(40);
+  const [imgAspect, setImgAspect] = useState(imageAspectRatio ?? 1);
   const inputRef = useRef<TextInput>(null);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showSub = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const keyboard = useAnimatedKeyboard();
+  const inputBarKeyboardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: -Math.max(
+          0,
+          keyboard.height.value - safeAreaInsets.bottom,
+        ),
+      },
+    ],
+  }));
 
   const loadComments = useCallback(async () => {
+    setCommentsError(null);
     try {
       const data = await fetchComments(postId);
       setComments(data);
-    } catch {
-      // silent
+    } catch (error) {
+      console.error('[comments] load failed', { postId, error });
+      setCommentsError('Komentar gagal dimuat. Periksa koneksi lalu coba lagi.');
     } finally {
       setLoadingComments(false);
     }
@@ -96,12 +102,15 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
     if (!trimmed || sending) return;
 
     setSending(true);
+    setSendError(null);
     try {
       await postComment(postId, trimmed);
       setCommentText('');
+      setInputHeight(40);
       await loadComments();
-    } catch {
-      // silent
+    } catch (error) {
+      console.error('[comments] send failed', { postId, error });
+      setSendError('Komentar gagal dikirim. Coba lagi.');
     } finally {
       setSending(false);
     }
@@ -109,7 +118,7 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
 
   if (!post) {
     return (
-    <Screen padded={false} edges={['top', 'bottom']}>
+      <Screen padded={false} edges={['top', 'bottom']}>
         <View style={[styles.header, { borderBottomColor: palette.border }]}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={22} color={palette.text} />
@@ -163,7 +172,20 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
   const postHeader = useMemo(() => (
     <View>
       {/* Author row */}
-      <View style={styles.authorRow}>
+      <Pressable
+        onPress={() => {
+          if (post.authorId === currentUserId) {
+            navigation.navigate('Main', {
+              screen: 'HomeTabs',
+              params: { screen: 'Profile' },
+            });
+            return;
+          }
+
+          navigation.navigate('UserProfile', { userId: post.authorId });
+        }}
+        style={styles.authorRow}
+      >
         {post.avatarUrl ? (
           <Image source={{ uri: post.avatarUrl }} style={styles.avatar} contentFit="cover" />
         ) : (
@@ -175,7 +197,7 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
           <Text style={[styles.displayName, { color: palette.text }]}>{post.author}</Text>
           <Text style={[styles.handle, { color: palette.textMuted }]}>@{post.username}</Text>
         </View>
-      </View>
+      </Pressable>
 
       {/* Caption */}
       <Text style={[styles.caption, { color: palette.text }]}>{post.caption}</Text>
@@ -187,15 +209,23 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
             navigation.navigate('PhotoViewer', { imageUrl: post.imageUrl!, alt: post.caption })
           }
         >
-          <Image
-            source={{ uri: post.imageUrl }}
-            style={[styles.postImage, { aspectRatio: imgAspect }]}
-            contentFit="cover"
-            onLoad={(e) => {
-              const { width, height } = e.source;
-              if (width && height) setImgAspect(width / height);
-            }}
-          />
+          <Animated.View
+            sharedTransitionTag={sharedTransitionTag}
+            sharedTransitionStyle={postImageSharedTransition}
+            style={styles.postImageWrap}
+          >
+            <Image
+              source={{ uri: post.imageUrl }}
+              style={[styles.postImage, { aspectRatio: imgAspect }]}
+              contentFit="cover"
+              onLoad={(e) => {
+                const { width, height } = e.source;
+                if (width && height) {
+                  setImgAspect(Math.max(4 / 5, Math.min(2, width / height)));
+                }
+              }}
+            />
+          </Animated.View>
         </Pressable>
       ) : null}
 
@@ -233,8 +263,29 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
 
       {/* Divider */}
       <View style={[styles.divider, { borderBottomColor: palette.border }]} />
+
+      {commentsError ? (
+        <View style={[styles.inlineError, { backgroundColor: palette.accentSoft }]}>
+          <Text style={[styles.inlineErrorText, { color: palette.accent }]}>
+            {commentsError}
+          </Text>
+        </View>
+      ) : null}
     </View>
-  ), [post, palette, comments.length, postId, toggleLike, avatarInitial, fullDate, navigation]);
+  ), [
+    avatarInitial,
+    comments.length,
+    commentsError,
+    currentUserId,
+    fullDate,
+    imgAspect,
+    navigation,
+    palette,
+    post,
+    postId,
+    sharedTransitionTag,
+    toggleLike,
+  ]);
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
@@ -258,51 +309,74 @@ export function PostDetailScreen({ route, navigation }: PostDetailProps) {
             renderItem={renderComment}
             ListHeaderComponent={postHeader}
             contentContainerStyle={styles.listContent}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           />
         )}
 
-        <View
-          style={[
-            styles.inputBar,
-            {
-              borderTopColor: palette.border,
-              backgroundColor: palette.background,
-              paddingBottom: keyboardHeight > 0 ? 8 : 8,
-              marginBottom: keyboardHeight > 0 ? keyboardHeight - 1 : 0,
-            },
-          ]}
+        <Animated.View
+          entering={FadeInDown.duration(260)}
+          style={styles.inputBarEntry}
         >
-          <TextInput
-            ref={inputRef}
-            placeholder="Balas postingan..."
-            placeholderTextColor={palette.textMuted}
-            value={commentText}
-            onChangeText={setCommentText}
-            editable={!sending}
+          <Animated.View
             style={[
-              styles.input,
+              styles.inputBar,
               {
-                color: palette.text,
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
+                borderTopColor: palette.border,
+                backgroundColor: palette.background,
               },
-            ]}
-          />
-          <Pressable
-            onPress={() => void handleSend()}
-            disabled={!commentText.trim() || sending}
-            style={({ pressed }) => [
-              styles.sendButton,
-              {
-                backgroundColor: palette.primary,
-                opacity: pressed || !commentText.trim() ? 0.4 : 1,
-              },
+              inputBarKeyboardStyle,
             ]}
           >
-            <SendIcon size={16} color="#FFFFFF" />
-          </Pressable>
-        </View>
+            {sendError ? (
+              <Text style={[styles.sendError, { color: palette.accent }]}>{sendError}</Text>
+            ) : null}
+            <View style={styles.inputRow}>
+              <TextInput
+                ref={inputRef}
+                placeholder="Balas postingan..."
+                placeholderTextColor={palette.textMuted}
+                value={commentText}
+                onChangeText={setCommentText}
+                editable={!sending}
+                multiline
+                maxLength={500}
+                scrollEnabled={inputHeight >= 96}
+                textAlignVertical="top"
+                onContentSizeChange={(event) => {
+                  const nextHeight = Math.max(
+                    40,
+                    Math.min(96, event.nativeEvent.contentSize.height),
+                  );
+                  setInputHeight(nextHeight);
+                }}
+                style={[
+                  styles.input,
+                  {
+                    color: palette.text,
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                    height: inputHeight,
+                  },
+                ]}
+              />
+              <Pressable
+                onPress={() => void handleSend()}
+                disabled={!commentText.trim() || sending}
+                style={({ pressed }) => [
+                  styles.sendButton,
+                  {
+                    backgroundColor: palette.primary,
+                    opacity: pressed || !commentText.trim() ? 0.4 : 1,
+                  },
+                ]}
+              >
+                <SendIcon size={16} color="#FFFFFF" />
+              </Pressable>
+            </View>
+          </Animated.View>
+        </Animated.View>
       </View>
     </Screen>
   );
@@ -373,9 +447,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 23,
   },
-  postImage: {
+  postImageWrap: {
     marginTop: 14,
     marginHorizontal: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  postImage: {
     width: undefined,
   },
   timestamp: {
@@ -417,7 +495,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   listContent: {
-    paddingBottom: 16,
+    paddingBottom: 94,
   },
   commentRow: {
     flexDirection: 'row',
@@ -466,21 +544,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  inputBarEntry: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   inputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 8,
   },
   input: {
     flex: 1,
-    height: 38,
+    minHeight: 40,
+    maxHeight: 96,
     borderWidth: 1,
-    borderRadius: 19,
+    borderRadius: 20,
     paddingHorizontal: 14,
+    paddingTop: 9,
+    paddingBottom: 9,
     fontSize: 14,
+    lineHeight: 20,
   },
   sendButton: {
     width: 38,
@@ -488,5 +578,23 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  inlineError: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  inlineErrorText: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  sendError: {
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
