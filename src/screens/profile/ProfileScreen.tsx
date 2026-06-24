@@ -1,135 +1,158 @@
-import { Edit3, ImagePlus, UserRound, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  KeyboardAvoidingView,
-  Platform,
+  Edit3,
+  FileText,
+  ImagePlus,
+  Images,
+  Share2,
+  UserRound,
+} from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
   Pressable,
-  ScrollView,
+  Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
-
-  Dimensions,
-  ActivityIndicator,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../types/navigation';
 
+import { AnimatedPostCard } from '../../components/AnimatedPostCard';
 import { Avatar } from '../../components/Avatar';
 import { EmptyState } from '../../components/EmptyState';
-import { PrimaryButton } from '../../components/PrimaryButton';
 import { Screen } from '../../components/Screen';
+import { getUserPosts } from '../../services/postService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePostStore } from '../../store/usePostStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
-import { getUserPosts } from '../../services/postService';
+import type { RootStackParamList } from '../../types/navigation';
 import type { Post } from '../../types/social';
+import { getPostImageTransitionTag } from '../../utils/postTransition';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRID_GAP = 2;
-const NUM_COLUMNS = 3;
-const TILE_SIZE = (SCREEN_WIDTH - GRID_GAP * (NUM_COLUMNS - 1) - 32) / NUM_COLUMNS; // account for paddingHorizontal 16
-
-type ProfileFormState = {
-  displayName: string;
-  username: string;
-  bio: string;
-  avatarUrl: string;
-};
-
-function getProfileFormState(
-  user: ReturnType<typeof useAuthStore.getState>['user'],
-): ProfileFormState {
-  return {
-    displayName: user?.displayName ?? '',
-    username: user?.username ?? '',
-    bio: user?.bio ?? '',
-    avatarUrl: user?.avatarUrl ?? '',
-  };
-}
+type ProfileNavigation = NativeStackNavigationProp<RootStackParamList>;
+type ProfileTab = 'posts' | 'media';
 
 export function ProfileScreen() {
+  const navigation = useNavigation<ProfileNavigation>();
   const user = useAuthStore((state) => state.user);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const error = useAuthStore((state) => state.error);
-  const updateUserProfile = useAuthStore((state) => state.updateUserProfile);
-  const clearError = useAuthStore((state) => state.clearError);
+  const toggleLike = usePostStore((state) => state.toggleLike);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
-  const [isEditing, setIsEditing] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [form, setForm] = useState<ProfileFormState>(getProfileFormState(user));
 
-  useEffect(() => {
-    setForm(getProfileFormState(user));
-  }, [user]);
-
-  const canSave = form.displayName.trim().length > 0 && form.username.trim().length > 0 && !isLoading;
-
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
 
-  const nav = useNavigation<Nav>();
-
-  const updateForm = (field: keyof ProfileFormState, value: string) => {
-    clearError();
-    setNotice(null);
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
-  };
-
-  const startEditing = () => {
-    clearError();
-    setNotice(null);
-    setForm(getProfileFormState(user));
-    setIsEditing(true);
-  };
-
-  const cancelEditing = () => {
-    clearError();
-    setNotice(null);
-    setForm(getProfileFormState(user));
-    setIsEditing(false);
-  };
-
-  const saveProfile = async () => {
-    if (!canSave) return;
-
-    try {
-      await updateUserProfile(form);
-      setNotice('Profil berhasil diperbarui.');
-      setIsEditing(false);
-    } catch {
+  const loadPosts = useCallback(async () => {
+    if (!user) {
+      setPosts([]);
       return;
     }
-  };
 
-  useEffect(() => {
-    // load user's posts for grid
-    if (!user) return;
-    let mounted = true;
     setPostsLoading(true);
-    getUserPosts(user.id, { maxResults: 100 })
-      .then((res) => {
-        if (!mounted) return;
-        setPosts(res);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setPosts([]);
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setPostsLoading(false);
+    setPostsError(null);
+
+    try {
+      const nextPosts = await getUserPosts(user.id, { maxResults: 100 });
+      setPosts(nextPosts);
+    } catch (error) {
+      console.error('[profile] posts load failed', {
+        userId: user.id,
+        error,
       });
-    return () => {
-      mounted = false;
-    };
+      setPostsError('Postingan gagal dimuat. Periksa koneksi lalu coba lagi.');
+    } finally {
+      setPostsLoading(false);
+    }
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPosts();
+    }, [loadPosts]),
+  );
+
+  const visiblePosts = useMemo(
+    () =>
+      activeTab === 'media'
+        ? posts.filter((post) => Boolean(post.imageUrl))
+        : posts,
+    [activeTab, posts],
+  );
+
+  const shareProfile = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: `Profil ${user.displayName}`,
+        message: `Lihat profil ${user.displayName} (@${user.username}) di Sociyo.`,
+      });
+    } catch (error) {
+      console.error('[profile] share failed', {
+        userId: user.id,
+        error,
+      });
+      Alert.alert('Gagal membagikan profil', 'Coba lagi beberapa saat.');
+    }
+  }, [user]);
+
+  const handleToggleLike = useCallback(
+    (postId: string) => {
+      setPosts((currentPosts) =>
+        currentPosts.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                likedByMe: !post.likedByMe,
+                likes: Math.max(
+                  0,
+                  post.likes + (post.likedByMe ? -1 : 1),
+                ),
+              }
+            : post,
+        ),
+      );
+      void toggleLike(postId);
+    },
+    [toggleLike],
+  );
+
+  const renderPost = useCallback(
+    ({ item, index }: { item: Post; index: number }) => (
+      <AnimatedPostCard
+        post={item}
+        index={index}
+        onOpen={(imageAspectRatio) =>
+          navigation.navigate('PostDetail', {
+            postId: item.id,
+            imageAspectRatio,
+            sharedTransitionTag: item.imageUrl
+              ? getPostImageTransitionTag(item.id)
+              : undefined,
+          })
+        }
+        onPhotoOpen={() => {
+          if (item.imageUrl) {
+            navigation.navigate('PhotoViewer', {
+              imageUrl: item.imageUrl,
+              alt: item.caption,
+            });
+          }
+        }}
+        onAvatarOpen={() => undefined}
+        onLike={() => handleToggleLike(item.id)}
+      />
+    ),
+    [handleToggleLike, navigation],
+  );
 
   if (!user) {
     return (
@@ -145,345 +168,323 @@ export function ProfileScreen() {
     );
   }
 
+  const listHeader = (
+    <View>
+      <View style={styles.profileHeader}>
+        <View style={styles.identityCopy}>
+          <Text style={[styles.name, { color: palette.text }]}>
+            {user.displayName}
+          </Text>
+          <Text style={[styles.username, { color: palette.text }]}>
+            @{user.username}
+          </Text>
+        </View>
+
+        <Avatar
+          displayName={user.displayName}
+          username={user.username}
+          avatarUrl={user.avatarUrl}
+          size={84}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.bio,
+          { color: user.bio ? palette.text : palette.textMuted },
+        ]}
+      >
+        {user.bio || 'Belum ada bio.'}
+      </Text>
+
+      <View style={styles.profileStats}>
+        <Text style={[styles.statText, { color: palette.textMuted }]}>
+          <Text style={[styles.statValue, { color: palette.text }]}>
+            {posts.length}
+          </Text>{' '}
+          postingan
+        </Text>
+        <View style={[styles.statSeparator, { backgroundColor: palette.border }]} />
+        <Text style={[styles.statText, { color: palette.textMuted }]}>
+          <Text style={[styles.statValue, { color: palette.text }]}>
+            {user.followersCount}
+          </Text>{' '}
+          pengikut
+        </Text>
+        <View style={[styles.statSeparator, { backgroundColor: palette.border }]} />
+        <Text style={[styles.statText, { color: palette.textMuted }]}>
+          <Text style={[styles.statValue, { color: palette.text }]}>
+            {user.followingCount}
+          </Text>{' '}
+          mengikuti
+        </Text>
+      </View>
+
+      <View style={styles.profileActions}>
+        <Pressable
+          onPress={() => navigation.navigate('EditProfile')}
+          style={({ pressed }) => [
+            styles.profileActionButton,
+            {
+              borderColor: palette.border,
+              backgroundColor: palette.surface,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <Edit3 size={17} color={palette.text} />
+          <Text style={[styles.profileActionLabel, { color: palette.text }]}>
+            Edit profil
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => void shareProfile()}
+          style={({ pressed }) => [
+            styles.profileActionButton,
+            {
+              borderColor: palette.border,
+              backgroundColor: palette.surface,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <Share2 size={17} color={palette.text} />
+          <Text style={[styles.profileActionLabel, { color: palette.text }]}>
+            Bagikan profil
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.tabs, { borderBottomColor: palette.border }]}>
+        <Pressable
+          onPress={() => setActiveTab('posts')}
+          style={styles.tabButton}
+        >
+          <FileText
+            size={17}
+            color={activeTab === 'posts' ? palette.text : palette.textMuted}
+          />
+          <Text
+            style={[
+              styles.tabLabel,
+              {
+                color:
+                  activeTab === 'posts' ? palette.text : palette.textMuted,
+              },
+            ]}
+          >
+            Postingan
+          </Text>
+          {activeTab === 'posts' ? (
+            <View
+              style={[styles.activeTabLine, { backgroundColor: palette.primary }]}
+            />
+          ) : null}
+        </Pressable>
+
+        <Pressable
+          onPress={() => setActiveTab('media')}
+          style={styles.tabButton}
+        >
+          <Images
+            size={17}
+            color={activeTab === 'media' ? palette.text : palette.textMuted}
+          />
+          <Text
+            style={[
+              styles.tabLabel,
+              {
+                color:
+                  activeTab === 'media' ? palette.text : palette.textMuted,
+              },
+            ]}
+          >
+            Media
+          </Text>
+          {activeTab === 'media' ? (
+            <View
+              style={[styles.activeTabLine, { backgroundColor: palette.primary }]}
+            />
+          ) : null}
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <Screen padded={false}>
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
-        style={styles.keyboard}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}
-        >
-          <View style={styles.header}>
-            <Avatar
-              displayName={user.displayName}
-              username={user.username}
-              avatarUrl={user.avatarUrl}
-              size={82}
-            />
-            <View style={styles.identity}>
-              <Text style={[styles.name, { color: palette.text }]}>{user.displayName}</Text>
-              <Text style={[styles.username, { color: palette.textMuted }]}>@{user.username}</Text>
-            </View>
-            <Pressable
-              onPress={startEditing}
-              disabled={isEditing}
-              style={[
-                styles.iconButton,
-                { backgroundColor: palette.surfaceMuted, opacity: isEditing ? 0.55 : 1 },
-              ]}
-            >
-              <Edit3 size={18} color={palette.text} />
-            </Pressable>
-          </View>
-
-          <View style={styles.stats}>
-            {[
-              ['Posts', String(user.postsCount)],
-              ['Followers', String(user.followersCount)],
-              ['Following', String(user.followingCount)],
-            ].map(([label, value]) => (
-              <View
-                key={label}
-                style={[
-                  styles.statCard,
-                  { backgroundColor: palette.surface, borderColor: palette.border },
-                ]}
-              >
-                <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
-                <Text style={[styles.statLabel, { color: palette.textMuted }]}>{label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {isEditing ? (
-            <View style={[styles.editPanel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <View style={styles.panelHeader}>
-                <Text style={[styles.panelTitle, { color: palette.text }]}>Edit profile</Text>
-                <Pressable onPress={cancelEditing} hitSlop={8}>
-                  <X size={20} color={palette.textMuted} />
-                </Pressable>
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: palette.text }]}>Name</Text>
-                <TextInput
-                  placeholder="Nama lengkap"
-                  placeholderTextColor={palette.textMuted}
-                  value={form.displayName}
-                  onChangeText={(value) => updateForm('displayName', value)}
-                  style={[
-                    styles.input,
-                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: palette.text }]}>Username</Text>
-                <TextInput
-                  placeholder="username"
-                  placeholderTextColor={palette.textMuted}
-                  autoCapitalize="none"
-                  value={form.username}
-                  onChangeText={(value) => updateForm('username', value)}
-                  style={[
-                    styles.input,
-                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: palette.text }]}>Bio</Text>
-                <TextInput
-                  multiline
-                  placeholder="Tulis bio singkat..."
-                  placeholderTextColor={palette.textMuted}
-                  value={form.bio}
-                  onChangeText={(value) => updateForm('bio', value)}
-                  style={[
-                    styles.textArea,
-                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: palette.text }]}>Avatar URL</Text>
-                <TextInput
-                  placeholder="https://..."
-                  placeholderTextColor={palette.textMuted}
-                  autoCapitalize="none"
-                  keyboardType="url"
-                  value={form.avatarUrl}
-                  onChangeText={(value) => updateForm('avatarUrl', value)}
-                  style={[
-                    styles.input,
-                    { backgroundColor: palette.background, borderColor: palette.border, color: palette.text },
-                  ]}
-                />
-                <Text style={[styles.fieldHint, { color: palette.textMuted }]}>
-                  Upload avatar ke Storage masuk sprint Minggu 14; sekarang URL dulu untuk CRUD profil.
-                </Text>
-              </View>
-
-              {error ? <Text style={[styles.error, { color: palette.accent }]}>{error}</Text> : null}
-              <PrimaryButton onPress={saveProfile} disabled={!canSave}>
-                {isLoading ? 'Menyimpan...' : 'Simpan profil'}
-              </PrimaryButton>
-            </View>
-          ) : (
-            <View style={[styles.bioCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Text style={[styles.cardTitle, { color: palette.text }]}>Bio</Text>
-              <Text style={[styles.bioText, { color: user.bio ? palette.text : palette.textMuted }]}>
-                {user.bio || 'Belum ada bio. Tap tombol edit untuk menambahkan bio singkat.'}
-              </Text>
-              {notice ? <Text style={[styles.notice, { color: palette.success }]}>{notice}</Text> : null}
-            </View>
-          )}
-
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Recent posts</Text>
-          {/* Recent posts grid */}
-          {postsLoading ? (
-            <View style={{ paddingVertical: 12 }}>
+      <FlatList
+        data={visiblePosts}
+        keyExtractor={(item) => item.id}
+        renderItem={renderPost}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          postsLoading ? (
+            <View style={styles.loadingState}>
               <ActivityIndicator color={palette.primary} />
+              <Text style={[styles.loadingText, { color: palette.textMuted }]}>
+                Memuat postingan...
+              </Text>
             </View>
-          ) : posts.length === 0 ? (
+          ) : postsError ? (
             <EmptyState
-              icon={<ImagePlus size={24} color={palette.primary} />}
-              title="Belum ada postingan"
-              message="Post milik user akan tampil setelah fitur upload dan feed disambungkan."
+              icon={<ImagePlus size={24} color={palette.accent} />}
+              title="Postingan belum tersedia"
+              message={postsError}
             />
           ) : (
-            <View style={styles.gridContainer}>
-              {Array.from({ length: Math.ceil(posts.length / NUM_COLUMNS) }, (_, rowIdx) => {
-                const rowItems = posts.slice(rowIdx * NUM_COLUMNS, (rowIdx + 1) * NUM_COLUMNS);
-                return (
-                  <View key={rowIdx} style={styles.gridRow}>
-                    {rowItems.map((item) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => nav.navigate('PostDetail', { postId: item.id })}
-                        style={styles.gridTile}
-                      >
-                        {item.imageUrl ? (
-                          <Image source={{ uri: item.imageUrl }} style={styles.gridImage} contentFit="cover" />
-                        ) : (
-                          <View style={[styles.gridFallback, { backgroundColor: palette.surface }]}>
-                            <Text numberOfLines={2} style={{ color: palette.text, fontWeight: '700' }}>{item.caption}</Text>
-                          </View>
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <EmptyState
+              icon={
+                activeTab === 'media' ? (
+                  <Images size={24} color={palette.primary} />
+                ) : (
+                  <ImagePlus size={24} color={palette.primary} />
+                )
+              }
+              title={
+                activeTab === 'media'
+                  ? 'Belum ada media'
+                  : 'Belum ada postingan'
+              }
+              message={
+                activeTab === 'media'
+                  ? 'Postingan bergambar akan tampil di sini.'
+                  : 'Postingan yang kamu buat akan tampil di profil.'
+              }
+            />
+          )
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          visiblePosts.length === 0 && styles.emptyListContent,
+        ]}
+        showsVerticalScrollIndicator={false}
+        onRefresh={() => void loadPosts()}
+        refreshing={postsLoading && posts.length > 0}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-  },
-  scroll: {
+  listContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 28,
+    paddingTop: 18,
+    paddingBottom: 32,
+  },
+  emptyListContent: {
+    flexGrow: 1,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
   },
-  header: {
+  profileHeader: {
+    minHeight: 88,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 18,
   },
-  identity: {
+  identityCopy: {
     flex: 1,
+    paddingTop: 4,
   },
   name: {
-    fontSize: 22,
+    fontSize: 27,
+    lineHeight: 33,
     fontWeight: '900',
   },
   username: {
-    marginTop: 3,
-    fontSize: 14,
+    marginTop: 4,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '700',
   },
-  iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  bio: {
+    marginTop: 14,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '500',
   },
-  stats: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 22,
-  },
-  statCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  statLabel: {
-    marginTop: 3,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  editPanel: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-    gap: 12,
-  },
-  panelHeader: {
+  profileStats: {
+    marginTop: 15,
+    minHeight: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  panelTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  fieldGroup: {
-    gap: 7,
-  },
-  fieldLabel: {
+  statText: {
     fontSize: 13,
-    fontWeight: '900',
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-  },
-  textArea: {
-    minHeight: 92,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    textAlignVertical: 'top',
-    fontSize: 14,
-  },
-  fieldHint: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  error: {
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  bioCard: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
-  },
-  cardTitle: {
-    marginBottom: 12,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  bioText: {
-    fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 19,
     fontWeight: '600',
   },
-  notice: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  sectionTitle: {
-    marginTop: 26,
-    marginBottom: 12,
-    fontSize: 18,
+  statValue: {
     fontWeight: '900',
   },
-
-  // grid
-  gridContainer: {
-    paddingHorizontal: 0,
+  statSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
   },
-  gridRow: {
+  profileActions: {
+    marginTop: 19,
     flexDirection: 'row',
-    gap: GRID_GAP,
-    marginBottom: GRID_GAP,
+    gap: 10,
   },
-  gridTile: {
-    width: TILE_SIZE,
-    height: TILE_SIZE,
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridFallback: {
-    width: '100%',
-    height: '100%',
+  profileActionButton: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    gap: 8,
+  },
+  profileActionLabel: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  tabs: {
+    height: 58,
+    marginTop: 20,
+    marginHorizontal: -16,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+  },
+  tabButton: {
+    flex: 1,
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  activeTabLine: {
+    position: 'absolute',
+    right: 24,
+    bottom: -1,
+    left: 24,
+    height: 2,
+  },
+  loadingState: {
+    minHeight: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

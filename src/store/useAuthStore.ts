@@ -23,6 +23,7 @@ import {
 
 import { firestore, getFirebaseAuth } from '../services/firebase';
 import { unregisterPushNotifications } from '../services/notificationService';
+import { uploadAvatarImage } from '../services/profileService';
 
 export type SessionUser = {
   id: string;
@@ -63,16 +64,14 @@ type ProfileInput = {
   displayName: string;
   username: string;
   bio: string;
-  avatarUrl: string;
+  avatarFile: {
+    uri: string;
+    mimeType: string | null;
+  } | null;
 };
 
 function normalizeUsername(username: string) {
   return username.trim().replace(/^@/, '').toLowerCase();
-}
-
-function normalizeAvatarUrl(avatarUrl: string) {
-  const cleanAvatarUrl = avatarUrl.trim();
-  return cleanAvatarUrl.length > 0 ? cleanAvatarUrl : null;
 }
 
 function getStringValue(value: unknown, fallback: string) {
@@ -299,13 +298,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       throw error;
     }
   },
-  updateUserProfile: async ({ displayName, username, bio, avatarUrl }) => {
+  updateUserProfile: async ({ displayName, username, bio, avatarFile }) => {
     const auth = getFirebaseAuth();
     const firebaseUser = auth.currentUser;
     const cleanDisplayName = displayName.trim();
     const cleanUsername = normalizeUsername(username);
     const cleanBio = bio.trim();
-    const cleanAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
     if (!firebaseUser) {
       set({ error: 'Sesi login tidak ditemukan.' });
@@ -334,9 +332,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw new Error('Username ini sudah dipakai.');
       }
 
+      const currentAvatarUrl =
+        useAuthStore.getState().user?.avatarUrl ?? firebaseUser.photoURL ?? null;
+      const avatarUrl = avatarFile
+        ? await uploadAvatarImage(
+            firebaseUser.uid,
+            avatarFile.uri,
+            avatarFile.mimeType,
+          )
+        : currentAvatarUrl;
+
       await updateFirebaseProfile(firebaseUser, {
         displayName: cleanDisplayName,
-        photoURL: cleanAvatarUrl,
+        photoURL: avatarUrl,
       });
 
       await setDoc(
@@ -345,7 +353,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           displayName: cleanDisplayName,
           username: cleanUsername,
           bio: cleanBio,
-          avatarUrl: cleanAvatarUrl,
+          avatarUrl,
           email: firebaseUser.email,
           updatedAt: serverTimestamp(),
         },
@@ -360,7 +368,7 @@ export const useAuthStore = create<AuthState>((set) => ({
               displayName: cleanDisplayName,
               username: cleanUsername,
               bio: cleanBio,
-              avatarUrl: cleanAvatarUrl,
+              avatarUrl,
               email: firebaseUser.email,
             }
           : state.user,
@@ -369,6 +377,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       const currentError =
         error instanceof Error && error.message === 'Username ini sudah dipakai.'
           ? error.message
+          : error instanceof Error &&
+              error.message.toLowerCase().includes('foto profil')
+            ? 'Foto profil gagal diunggah. Periksa koneksi lalu coba lagi.'
           : getFirebaseErrorMessage(error);
       set({ isLoading: false, error: currentError });
       throw error;
