@@ -79,6 +79,12 @@ agar `expoPushToken` tersimpan pada profil Firestore.
 - Aktivitas notifikasi real-time untuk follow, like, dan comment.
 - Reply story masuk ke DM real-time, tampil pada tab Pesan, dan mengirim Expo push
   notification ke perangkat penerima yang sudah mengaktifkan notifikasi.
+- Feed menyimpan cache per akun dan tetap dapat dibaca saat perangkat offline.
+- Gambar post memakai shared hero transition menuju detail post.
+- Form komentar mengikuti keyboard dan safe area Android menggunakan Reanimated.
+- Profil publik pengguna lain dengan follow/unfollow, tab Postingan/Media, dan
+  tombol untuk memulai percakapan DM.
+- Avatar dan nama pengguna pada Search, Feed, dan Post Detail membuka profil publik.
 
 ### Status Timeline
 
@@ -86,9 +92,14 @@ agar `expoPushToken` tersimpan pada profil Firestore.
 - Minggu 14 Core Features Sprint: selesai untuk alur aplikasi dan setup push token.
 - Minggu 14 Feature-Specific Sprint: tiga fitur unggulan sudah dapat didemokan,
   yaitu Immersive Story Viewer, Animated Feed, dan Interactive Photo Viewer.
+- Minggu 15 Advanced Sprint: offline feed cache dan fitur unggulan Smooth Navigation
+  Transitions sudah diimplementasikan; tahap berikutnya adalah pengujian perangkat
+  dan optimasi performa.
 
 ### Berikutnya
 
 - Melakukan smoke test push notification dan DM pada dua akun.
-- Menyelesaikan smooth navigation transition dan keyboard-aware comment animation.
-- Offline cache, performance profiling, APK, dan dokumentasi final pada Minggu 15.
+- Smoke test offline cache, shared transition, form komentar, push notification,
+  dan DM menggunakan development build Android.
+- Performance profiling, bug fixing lintas perangkat, build APK, test report,
+  screenshot README, dan dokumentasi final.
