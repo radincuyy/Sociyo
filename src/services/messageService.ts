@@ -81,7 +81,10 @@ function timestampToISO(value: unknown): string {
   return new Date().toISOString();
 }
 
-function getThreadId(firstUserId: string, secondUserId: string): string {
+export function getDirectMessageThreadId(
+  firstUserId: string,
+  secondUserId: string,
+): string {
   return [firstUserId, secondUserId].sort().join('__');
 }
 
@@ -232,7 +235,10 @@ async function sendMessage(input: SendMessageInput): Promise<SendMessageResult> 
     getParticipant(input.senderId),
     getParticipant(input.recipientId),
   ]);
-  const threadId = getThreadId(input.senderId, input.recipientId);
+  const threadId = getDirectMessageThreadId(
+    input.senderId,
+    input.recipientId,
+  );
   const threadRef = doc(firestore, THREADS_COLLECTION, threadId);
   const messageRef = doc(collection(threadRef, MESSAGES_COLLECTION));
   const lastMessage =

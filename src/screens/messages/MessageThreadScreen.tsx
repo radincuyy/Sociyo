@@ -34,6 +34,23 @@ type MessageThreadScreenProps = NativeStackScreenProps<
 
 const EMPTY_MESSAGES: DirectMessage[] = [];
 
+function createDraftThread(
+  currentUserId: string,
+  recipient: NonNullable<
+    RootStackParamList['MessageThread']['recipient']
+  >,
+): MessageThread {
+  return {
+    id: [currentUserId, recipient.id].sort().join('__'),
+    participantIds: [currentUserId, recipient.id],
+    otherUser: recipient,
+    lastMessage: '',
+    lastMessageAt: new Date().toISOString(),
+    lastSenderId: currentUserId,
+    unreadCount: 0,
+  };
+}
+
 function formatMessageTime(value: string): string {
   return new Date(value).toLocaleTimeString('id-ID', {
     hour: '2-digit',
@@ -118,7 +135,7 @@ export function MessageThreadScreen({
   navigation,
   route,
 }: MessageThreadScreenProps) {
-  const { threadId } = route.params;
+  const { threadId, recipient } = route.params;
   const { width: screenWidth } = useWindowDimensions();
   const isFocused = useIsFocused();
   const mode = useThemeStore((state) => state.mode);
@@ -149,7 +166,11 @@ export function MessageThreadScreen({
   useEffect(() => {
     let active = true;
 
-    if (!storedThread) {
+    if (storedThread) {
+      setThread(storedThread);
+    } else if (recipient && currentUserId) {
+      setThread(createDraftThread(currentUserId, recipient));
+    } else {
       void loadThread(threadId)
         .then((loadedThread) => {
           if (active) {
@@ -162,14 +183,12 @@ export function MessageThreadScreen({
             error: loadError,
           });
         });
-    } else {
-      setThread(storedThread);
     }
 
     return () => {
       active = false;
     };
-  }, [loadThread, storedThread, threadId]);
+  }, [currentUserId, loadThread, recipient, storedThread, threadId]);
 
   useEffect(() => {
     const unsubscribe = subscribeMessages(threadId);
@@ -181,13 +200,18 @@ export function MessageThreadScreen({
 
   useFocusEffect(
     useCallback(() => {
+      if (!storedThread) {
+        return undefined;
+      }
+
       void markThreadRead(threadId).catch((markError: unknown) => {
         console.warn('[messages] mark thread read failed', {
           threadId,
           error: markError,
         });
       });
-    }, [markThreadRead, threadId]),
+      return undefined;
+    }, [markThreadRead, storedThread, threadId]),
   );
 
   useEffect(() => {
@@ -203,6 +227,7 @@ export function MessageThreadScreen({
 
     if (
       isFocused
+      && storedThread
       && lastMessage
       && lastMessage.senderId !== currentUserId
     ) {
@@ -213,7 +238,14 @@ export function MessageThreadScreen({
         });
       });
     }
-  }, [currentUserId, isFocused, markThreadRead, messages, threadId]);
+  }, [
+    currentUserId,
+    isFocused,
+    markThreadRead,
+    messages,
+    storedThread,
+    threadId,
+  ]);
 
   async function handleSend() {
     const cleanText = text.trim();

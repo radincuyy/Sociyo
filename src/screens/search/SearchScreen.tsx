@@ -38,9 +38,10 @@ const TILE_SIZE = (SCREEN_WIDTH - GRID_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 type SearchUserCardProps = {
   item: SearchUser;
   palette: Palette;
+  onOpen: () => void;
 };
 
-function SearchUserCard({ item, palette }: SearchUserCardProps) {
+function SearchUserCard({ item, palette, onOpen }: SearchUserCardProps) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const following = useFollowStore((state) => state.followMap[item.id] ?? false);
   const pending = useFollowStore((state) => state.pendingMap[item.id] ?? false);
@@ -57,14 +58,16 @@ function SearchUserCard({ item, palette }: SearchUserCardProps) {
 
   return (
     <View style={[styles.userCard, { borderBottomColor: palette.border }]}>
-      {item.avatarUrl ? (
-        <Image source={{ uri: item.avatarUrl }} style={styles.userAvatar} contentFit="cover" />
-      ) : (
-        <View style={[styles.userAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
-          <Text style={[styles.userAvatarLetter, { color: palette.text }]}>{initial}</Text>
-        </View>
-      )}
-      <View style={styles.userInfo}>
+      <Pressable onPress={onOpen}>
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={styles.userAvatar} contentFit="cover" />
+        ) : (
+          <View style={[styles.userAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.userAvatarLetter, { color: palette.text }]}>{initial}</Text>
+          </View>
+        )}
+      </Pressable>
+      <Pressable onPress={onOpen} style={styles.userInfo}>
         <Text style={[styles.userName, { color: palette.text }]} numberOfLines={1}>
           {item.displayName}
         </Text>
@@ -79,7 +82,7 @@ function SearchUserCard({ item, palette }: SearchUserCardProps) {
         <Text style={[styles.userMeta, { color: palette.textMuted }]}>
           {item.followersCount} pengikut · {item.postsCount} post
         </Text>
-      </View>
+      </Pressable>
       {isCurrentUser ? (
         <Text style={[styles.selfLabel, { color: palette.textMuted }]}>Kamu</Text>
       ) : (
@@ -115,6 +118,7 @@ export function SearchScreen() {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
   const nav = useNavigation<Nav>();
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const inputRef = useRef<TextInput>(null);
 
   const [searchText, setSearchText] = useState('');
@@ -163,8 +167,24 @@ export function SearchScreen() {
   }, []);
 
   const renderUserCard = useCallback(
-    ({ item }: { item: SearchUser }) => <SearchUserCard item={item} palette={palette} />,
-    [palette],
+    ({ item }: { item: SearchUser }) => (
+      <SearchUserCard
+        item={item}
+        palette={palette}
+        onOpen={() => {
+          if (item.id === currentUserId) {
+            nav.navigate('Main', {
+              screen: 'HomeTabs',
+              params: { screen: 'Profile' },
+            });
+            return;
+          }
+
+          nav.navigate('UserProfile', { userId: item.id });
+        }}
+      />
+    ),
+    [currentUserId, nav, palette],
   );
 
   const renderGridTile = useCallback(
