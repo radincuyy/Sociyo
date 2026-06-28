@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Heart, MessageCircle, Send } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -30,6 +30,26 @@ type AnimatedPostCardProps = {
   onAvatarOpen: () => void;
   onLike?: () => void;
 };
+
+function buildPostShareMessage(post: Post): string {
+  const lines = [`Lihat postingan @${post.username} di Sociyo.`];
+  const caption = post.caption.trim();
+  const location = post.location?.trim();
+
+  if (caption) {
+    lines.push('', caption);
+  }
+
+  if (location) {
+    lines.push('', `Lokasi: ${location}`);
+  }
+
+  if (post.imageUrl) {
+    lines.push('', post.imageUrl);
+  }
+
+  return lines.join('\n');
+}
 
 export function AnimatedPostCard({
   post,
@@ -80,6 +100,25 @@ export function AnimatedPostCard({
     countLift.value = 0;
     countLift.value = withTiming(1, { duration: 360 });
   };
+
+  async function handleShare(): Promise<void> {
+    try {
+      await Share.share(
+        {
+          title: `Postingan @${post.username}`,
+          message: buildPostShareMessage(post),
+          url: post.imageUrl ?? undefined,
+        },
+        {
+          dialogTitle: 'Bagikan postingan Sociyo',
+          subject: `Postingan @${post.username}`,
+        },
+      );
+    } catch (error) {
+      console.warn('[post-share] failed', { postId: post.id, error });
+      Alert.alert('Gagal berbagi', 'Tidak bisa membuka menu share. Coba lagi.');
+    }
+  }
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: appear.value,
@@ -213,7 +252,13 @@ export function AnimatedPostCard({
             </Pressable>
 
 
-            <Pressable style={styles.actionBtn}>
+            <Pressable
+              onPress={() => {
+                void handleShare();
+              }}
+              style={styles.actionBtn}
+              hitSlop={8}
+            >
               <Send size={20} color={palette.text} />
             </Pressable>
           </View>

@@ -103,3 +103,21 @@ agar `expoPushToken` tersimpan pada profil Firestore.
   dan DM menggunakan development build Android.
 - Performance profiling, bug fixing lintas perangkat, build APK, test report,
   screenshot README, dan dokumentasi final.
+
+## Dokumentasi Deliverable
+
+- [Architecture Documentation](docs/architecture.md)
+- [Firestore Schema](docs/firestore-schema.md)
+- [API and CRUD Documentation](docs/api-crud.md)
+- [Animation Catalog](docs/animation-catalog.md)
+- [User Manual](docs/user-manual.md)
+- [Test Report](docs/test-report.md)
+- [Performance Report](docs/performance-report.md)
+- [Demo Script](docs/demo-script.md)
+- [Submission Checklist](docs/submission-checklist.md)
+
+## Catatan Finalisasi
+
+Dokumentasi teknis sudah disiapkan sebagai draft final. Item yang masih harus
+diambil langsung dari perangkat adalah screenshot fitur utama, screen recording,
+angka profiling performa real device, APK build final, dan PPT presentasi.

@@ -21,6 +21,11 @@ const animations = [
     hook: 'Gesture.Exclusive, useSharedValue, withSequence',
   },
   {
+    name: 'Heart icon and like count feedback',
+    library: 'react-native-reanimated',
+    hook: 'withSpring, withSequence, withTiming',
+  },
+  {
     name: 'Story progress bar pause/resume',
     library: 'react-native-reanimated',
     hook: 'withTiming, cancelAnimation',
@@ -59,6 +64,11 @@ const animations = [
     name: 'Keyboard-aware comment composer',
     library: 'react-native-reanimated + react-native-safe-area-context',
     hook: 'useAnimatedKeyboard, useAnimatedStyle, FadeInDown',
+  },
+  {
+    name: 'Keyboard-aware DM composer',
+    library: 'react-native-reanimated + react-native-safe-area-context',
+    hook: 'useAnimatedKeyboard, useAnimatedStyle',
   },
 ];
 
