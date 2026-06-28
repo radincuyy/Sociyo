@@ -19,6 +19,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -36,6 +37,38 @@ type StoryViewerProps = NativeStackScreenProps<RootStackParamList, 'StoryViewer'
 
 const STORY_DURATION = 5000;
 const SHEET_HEIGHT = 238;
+
+type StoryProgressSegmentProps = {
+  currentIndex: number;
+  index: number;
+  progress: SharedValue<number>;
+};
+
+function StoryProgressSegment({
+  currentIndex,
+  index,
+  progress,
+}: StoryProgressSegmentProps) {
+  const progressStyle = useAnimatedStyle(() => {
+    if (index < currentIndex) {
+      return { width: '100%' };
+    }
+
+    if (index > currentIndex) {
+      return { width: '0%' };
+    }
+
+    return {
+      width: `${Math.max(0, Math.min(1, progress.value)) * 100}%`,
+    };
+  }, [currentIndex, index]);
+
+  return (
+    <View style={styles.progressTrack}>
+      <Animated.View style={[styles.progressFill, progressStyle]} />
+    </View>
+  );
+}
 
 export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
   const { width: screenWidth } = useWindowDimensions();
@@ -309,10 +342,6 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
 
   const storyGesture = Gesture.Simultaneous(horizontalPan, holdGesture);
 
-  const progressBarStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: progress.value }],
-  }));
-
   const storyTransitionStyle = useAnimatedStyle(() => ({
     opacity: storyOpacity.value,
     transform: [{ translateX: storyOffset.value }],
@@ -359,7 +388,7 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
               <Image
                 source={{ uri: activeStory.imageUrl ?? undefined }}
                 style={styles.image}
-                contentFit="cover"
+                contentFit="contain"
               />
             </Animated.View>
 
@@ -367,18 +396,12 @@ export function StoryViewerScreen({ navigation, route }: StoryViewerProps) {
 
             <View style={styles.progressRow}>
               {stories.map((story, index) => (
-                <View key={story.id} style={styles.progressTrack}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      index < currentIndex
-                        ? styles.progressComplete
-                        : index > currentIndex
-                          ? styles.progressPending
-                          : progressBarStyle,
-                    ]}
-                  />
-                </View>
+                <StoryProgressSegment
+                  key={story.id}
+                  currentIndex={currentIndex}
+                  index={index}
+                  progress={progress}
+                />
               ))}
             </View>
 
@@ -595,17 +618,9 @@ const styles = StyleSheet.create({
   progressFill: {
     position: 'absolute',
     top: 0,
-    right: 0,
     bottom: 0,
     left: 0,
     backgroundColor: '#FFFFFF',
-    transformOrigin: 'left center',
-  },
-  progressComplete: {
-    transform: [{ scaleX: 1 }],
-  },
-  progressPending: {
-    transform: [{ scaleX: 0 }],
   },
   headerOverlay: {
     position: 'absolute',
