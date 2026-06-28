@@ -8,8 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +15,11 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import Animated, {
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '../../components/Avatar';
 import { Screen } from '../../components/Screen';
@@ -33,6 +36,7 @@ type MessageThreadScreenProps = NativeStackScreenProps<
 >;
 
 const EMPTY_MESSAGES: DirectMessage[] = [];
+const MESSAGE_LIST_BOTTOM_PADDING = 92;
 
 function createDraftThread(
   currentUserId: string,
@@ -137,6 +141,7 @@ export function MessageThreadScreen({
 }: MessageThreadScreenProps) {
   const { threadId, recipient } = route.params;
   const { width: screenWidth } = useWindowDimensions();
+  const safeAreaInsets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
@@ -144,6 +149,7 @@ export function MessageThreadScreen({
   const storedThread = useMessageStore((state) =>
     state.threads.find((thread) => thread.id === threadId),
   );
+  const unreadCount = storedThread?.unreadCount ?? 0;
   const storedMessages = useMessageStore(
     (state) => state.messagesByThread[threadId],
   );
@@ -162,6 +168,34 @@ export function MessageThreadScreen({
   );
   const [text, setText] = useState('');
   const listRef = useRef<FlatList<DirectMessage>>(null);
+  const keyboard = useAnimatedKeyboard();
+  const messageListKeyboardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: -Math.max(
+          0,
+          keyboard.height.value - safeAreaInsets.bottom,
+        ),
+      },
+    ],
+  }));
+  const composerKeyboardStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: -Math.max(
+          0,
+          keyboard.height.value - safeAreaInsets.bottom,
+        ),
+      },
+    ],
+  }));
+  const scrollMessagesToEnd = useCallback((animated: boolean): void => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated });
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -200,7 +234,7 @@ export function MessageThreadScreen({
 
   useFocusEffect(
     useCallback(() => {
-      if (!storedThread) {
+      if (unreadCount <= 0) {
         return undefined;
       }
 
@@ -211,16 +245,14 @@ export function MessageThreadScreen({
         });
       });
       return undefined;
-    }, [markThreadRead, storedThread, threadId]),
+    }, [markThreadRead, threadId, unreadCount]),
   );
 
   useEffect(() => {
     if (messages.length > 0) {
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      });
+      scrollMessagesToEnd(true);
     }
-  }, [messages.length]);
+  }, [messages.length, scrollMessagesToEnd]);
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -228,6 +260,7 @@ export function MessageThreadScreen({
     if (
       isFocused
       && storedThread
+      && unreadCount > 0
       && lastMessage
       && lastMessage.senderId !== currentUserId
     ) {
@@ -245,6 +278,7 @@ export function MessageThreadScreen({
     messages,
     storedThread,
     threadId,
+    unreadCount,
   ]);
 
   async function handleSend() {
@@ -464,45 +498,50 @@ export function MessageThreadScreen({
         )}
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.flex}>
         {error ? (
           <Text style={[styles.error, { color: palette.accent }]}>{error}</Text>
         ) : null}
 
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={[
-            styles.messageList,
-            messages.length === 0 && styles.emptyMessages,
-          ]}
-          ListEmptyComponent={
-            loadingMessages ? (
-              <ActivityIndicator color={palette.primary} />
-            ) : (
-              <Text style={[styles.emptyText, { color: palette.textMuted }]}>
-                Mulai percakapan.
-              </Text>
-            )
-          }
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => {
-            listRef.current?.scrollToEnd({ animated: false });
-          }}
-        />
+        <View style={styles.messageClip}>
+          <Animated.View
+            style={[styles.messageArea, messageListKeyboardStyle]}
+          >
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMessage}
+              contentContainerStyle={[
+                styles.messageList,
+                messages.length === 0 && styles.emptyMessages,
+              ]}
+              ListEmptyComponent={
+                loadingMessages ? (
+                  <ActivityIndicator color={palette.primary} />
+                ) : (
+                  <Text
+                    style={[styles.emptyText, { color: palette.textMuted }]}
+                  >
+                    Mulai percakapan.
+                  </Text>
+                )
+              }
+              showsVerticalScrollIndicator={false}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+            />
+          </Animated.View>
+        </View>
 
-        <View
+        <Animated.View
           style={[
             styles.composer,
             {
               backgroundColor: palette.surface,
               borderTopColor: palette.border,
             },
+            composerKeyboardStyle,
           ]}
         >
           <TextInput
@@ -546,8 +585,8 @@ export function MessageThreadScreen({
               <Send size={18} color="#FFFFFF" />
             )}
           </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
     </Screen>
   );
 }
@@ -557,6 +596,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    zIndex: 2,
     minHeight: 58,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
@@ -589,10 +629,17 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '700',
   },
+  messageClip: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  messageArea: {
+    flex: 1,
+  },
   messageList: {
     paddingHorizontal: 14,
     paddingTop: 8,
-    paddingBottom: 18,
+    paddingBottom: MESSAGE_LIST_BOTTOM_PADDING,
     gap: 3,
   },
   emptyMessages: {
@@ -709,6 +756,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   composer: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
     minHeight: 62,
     paddingHorizontal: 12,
     paddingVertical: 9,

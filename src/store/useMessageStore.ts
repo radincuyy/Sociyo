@@ -148,6 +148,13 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   markThreadRead: async (threadId) => {
     const userId = getCurrentUserId();
     const originalThreads = get().threads;
+    const targetThread = originalThreads.find(
+      (thread) => thread.id === threadId,
+    );
+
+    if (!targetThread || targetThread.unreadCount <= 0) {
+      return;
+    }
 
     set((state) => {
       const threads = state.threads.map((thread) =>
