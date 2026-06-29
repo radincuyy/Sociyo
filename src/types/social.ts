@@ -80,7 +80,7 @@ export type ActivityNotification = {
   createdAt: string;
 };
 
-export type MessageKind = 'text' | 'story_reply';
+export type MessageKind = 'text' | 'story_reply' | 'image';
 
 export type DirectMessage = {
   id: string;
@@ -88,6 +88,7 @@ export type DirectMessage = {
   recipientId: string;
   kind: MessageKind;
   text: string;
+  imageUrl: string | null;
   storyId: string | null;
   storyImageUrl: string | null;
   createdAt: string;

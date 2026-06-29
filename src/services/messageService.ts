@@ -19,7 +19,8 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 
-import { firestore } from './firebase';
+import { firestore, firebaseStorage } from './firebase';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { sendDirectMessagePush } from './notificationService';
 import type {
   DirectMessage,
@@ -40,6 +41,7 @@ type SendMessageInput = {
   recipientId: string;
   text: string;
   kind: MessageKind;
+  imageUrl: string | null;
   storyId: string | null;
   storyImageUrl: string | null;
 };
@@ -184,7 +186,7 @@ function messageDocumentToModel(
   const data = snapshot.data() as Record<string, unknown>;
   const rawKind = getRequiredString(data, 'kind', snapshot.ref.path);
 
-  if (rawKind !== 'text' && rawKind !== 'story_reply') {
+  if (rawKind !== 'text' && rawKind !== 'story_reply' && rawKind !== 'image') {
     throw new Error(`Jenis pesan ${rawKind} tidak didukung.`);
   }
 
@@ -193,7 +195,10 @@ function messageDocumentToModel(
     senderId: getRequiredString(data, 'senderId', snapshot.ref.path),
     recipientId: getRequiredString(data, 'recipientId', snapshot.ref.path),
     kind: rawKind,
-    text: getRequiredString(data, 'text', snapshot.ref.path),
+    text: rawKind === 'image'
+      ? getOptionalString(data, 'text') ?? ''
+      : getRequiredString(data, 'text', snapshot.ref.path),
+    imageUrl: getOptionalString(data, 'imageUrl'),
     storyId: getOptionalString(data, 'storyId'),
     storyImageUrl: getOptionalString(data, 'storyImageUrl'),
     createdAt: timestampToISO(data.createdAt),
@@ -221,11 +226,11 @@ async function getRecipientPushToken(
 }
 
 async function sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
-  const cleanText = input.text.trim();
-
-  if (!cleanText) {
+  if (input.kind !== 'image' && !input.text.trim()) {
     throw new Error('Pesan tidak boleh kosong.');
   }
+
+  const cleanText = input.text.trim();
 
   if (input.senderId === input.recipientId) {
     throw new Error('Tidak dapat mengirim pesan kepada akun sendiri.');
@@ -244,7 +249,9 @@ async function sendMessage(input: SendMessageInput): Promise<SendMessageResult> 
   const lastMessage =
     input.kind === 'story_reply'
       ? `Membalas story: ${cleanText}`
-      : cleanText;
+      : input.kind === 'image'
+        ? '📷 Foto'
+        : cleanText;
   const batch = writeBatch(firestore);
 
   batch.set(messageRef, {
@@ -252,6 +259,7 @@ async function sendMessage(input: SendMessageInput): Promise<SendMessageResult> 
     recipientId: input.recipientId,
     kind: input.kind,
     text: cleanText,
+    imageUrl: input.imageUrl,
     storyId: input.storyId,
     storyImageUrl: input.storyImageUrl,
     createdAt: serverTimestamp(),
@@ -332,6 +340,7 @@ export async function sendStoryReplyMessage(input: {
     recipientId: input.recipientId,
     text: input.text,
     kind: 'story_reply',
+    imageUrl: null,
     storyId: input.storyId,
     storyImageUrl: input.storyImageUrl,
   });
@@ -347,6 +356,57 @@ export async function sendTextMessage(input: {
     recipientId: input.recipientId,
     text: input.text,
     kind: 'text',
+    imageUrl: null,
+    storyId: null,
+    storyImageUrl: null,
+  });
+}
+
+export async function uploadMessageImage(
+  uri: string,
+  senderId: string,
+): Promise<string> {
+  const filename = `messages/${senderId}/${Date.now()}.jpg`;
+  const storageRef = ref(firebaseStorage, filename);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+
+  const uploadTask = uploadBytesResumable(storageRef, blob);
+
+  return new Promise<string>((resolve, reject) => {
+    uploadTask.on(
+      'state_changed',
+      null,
+      (error) => reject(error),
+      async () => {
+        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        resolve(downloadUrl);
+      },
+    );
+  });
+}
+
+export async function sendImageMessage(input: {
+  senderId: string;
+  recipientId: string;
+  imageUri: string;
+  caption?: string;
+}): Promise<SendMessageResult> {
+  const imageUrl = await uploadMessageImage(input.imageUri, input.senderId);
+
+  return sendMessage({
+    senderId: input.senderId,
+    recipientId: input.recipientId,
+    text: input.caption?.trim() ?? '',
+    kind: 'image',
+    imageUrl,
     storyId: null,
     storyImageUrl: null,
   });
