@@ -40,6 +40,7 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
+EXPO_PUBLIC_EAS_PROJECT_ID=
 ```
 
 Untuk Google Sign-In, aktifkan provider Google di Firebase Authentication, lalu isi
@@ -48,11 +49,75 @@ buat OAuth Client tipe Android dengan package `com.radincuyy.sociyo` dan SHA-1 d
 project ini, lalu gunakan development build karena native Google Sign-In tidak tersedia
 di Expo Go.
 
-## Fokus Minggu 13
+Untuk Expo push notifications, isi `EXPO_PUBLIC_EAS_PROJECT_ID` dari konfigurasi
+project EAS. Setelah menambahkan plugin `expo-notifications`, rebuild development
+build agar konfigurasi native diterapkan.
 
-- Project Expo sudah dibuat.
-- Struktur folder `src` sudah disiapkan.
-- Navigasi Stack + Tab + Drawer sudah tersedia.
-- Auth Firebase sudah tersedia untuk login, register, dan sesi user.
-- Feed, story, profile, search, create post, notifications, settings sudah berupa skeleton.
-- Reanimated dan Gesture Handler sudah mulai dipakai untuk katalog animasi awal.
+Untuk Android FCM, unduh `google-services.json` dari aplikasi Android Firebase
+dengan package `com.radincuyy.sociyo`, letakkan di root project, lalu pastikan
+`android.googleServicesFile` pada `app.json` mengarah ke file tersebut. Rebuild
+development build setiap kali konfigurasi native Firebase berubah.
+
+Pengiriman remote push melalui Expo juga memerlukan kredensial FCM V1 pada
+project EAS. Akun penerima harus menekan **Aktifkan notifikasi** minimal sekali
+agar `expoPushToken` tersimpan pada profil Firestore.
+
+## Progress Saat Ini
+
+### Selesai
+
+- Authentication email/password, Google Sign-In, reset password, dan sesi persisten.
+- Profile CRUD, navigation Stack + Tab + Drawer, dan dark/light theme.
+- Create/read/delete post dengan Firebase Storage dan Firestore.
+- Feed paginated, infinite scroll, like, comment, search user, dan explore grid.
+- Follow/unfollow dari hasil pencarian pengguna.
+- Story upload 24 jam, story ring, progress viewer, tap navigation, swipe, pause,
+  slide transition, dan reply bottom sheet.
+- Photo viewer dengan pinch, pan, double-tap zoom, dan swipe dismiss.
+- Custom animated pull-to-refresh, staggered feed card, dan animasi bottom tab.
+- Registrasi izin notifikasi dan Expo push token ke profil Firestore.
+- Aktivitas notifikasi real-time untuk follow, like, dan comment.
+- Reply story masuk ke DM real-time, tampil pada tab Pesan, dan mengirim Expo push
+  notification ke perangkat penerima yang sudah mengaktifkan notifikasi.
+- Feed menyimpan cache per akun dan tetap dapat dibaca saat perangkat offline.
+- Gambar post memakai shared hero transition menuju detail post.
+- Form komentar mengikuti keyboard dan safe area Android menggunakan Reanimated.
+- Profil publik pengguna lain dengan follow/unfollow, tab Postingan/Media, dan
+  tombol untuk memulai percakapan DM.
+- Avatar dan nama pengguna pada Search, Feed, dan Post Detail membuka profil publik.
+
+### Status Timeline
+
+- Minggu 13 Foundation Sprint: selesai.
+- Minggu 14 Core Features Sprint: selesai untuk alur aplikasi dan setup push token.
+- Minggu 14 Feature-Specific Sprint: tiga fitur unggulan sudah dapat didemokan,
+  yaitu Immersive Story Viewer, Animated Feed, dan Interactive Photo Viewer.
+- Minggu 15 Advanced Sprint: offline feed cache dan fitur unggulan Smooth Navigation
+  Transitions sudah diimplementasikan; tahap berikutnya adalah pengujian perangkat
+  dan optimasi performa.
+
+### Berikutnya
+
+- Melakukan smoke test push notification dan DM pada dua akun.
+- Smoke test offline cache, shared transition, form komentar, push notification,
+  dan DM menggunakan development build Android.
+- Performance profiling, bug fixing lintas perangkat, build APK, test report,
+  screenshot README, dan dokumentasi final.
+
+## Dokumentasi Deliverable
+
+- [Architecture Documentation](docs/architecture.md)
+- [Firestore Schema](docs/firestore-schema.md)
+- [API and CRUD Documentation](docs/api-crud.md)
+- [Animation Catalog](docs/animation-catalog.md)
+- [User Manual](docs/user-manual.md)
+- [Test Report](docs/test-report.md)
+- [Performance Report](docs/performance-report.md)
+- [Demo Script](docs/demo-script.md)
+- [Submission Checklist](docs/submission-checklist.md)
+
+## Catatan Finalisasi
+
+Dokumentasi teknis sudah disiapkan sebagai draft final. Item yang masih harus
+diambil langsung dari perangkat adalah screenshot fitur utama, screen recording,
+angka profiling performa real device, APK build final, dan PPT presentasi.

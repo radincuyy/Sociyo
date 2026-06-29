@@ -1,16 +1,15 @@
 import {
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   collection,
   increment,
   serverTimestamp,
-  setDoc,
-  updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { firestore } from './firebase';
+import { createActivityNotification } from './activityService';
 
 const USERS = 'users';
 
@@ -30,15 +29,31 @@ export async function followUser(currentUserId: string, targetUserId: string): P
 
   const followingRef = doc(firestore, USERS, currentUserId, 'following', targetUserId);
   const followerRef = doc(firestore, USERS, targetUserId, 'followers', currentUserId);
-
-  await setDoc(followingRef, { createdAt: serverTimestamp() });
-  await setDoc(followerRef, { createdAt: serverTimestamp() });
-
   const currentUserRef = doc(firestore, USERS, currentUserId);
   const targetUserRef = doc(firestore, USERS, targetUserId);
+  const batch = writeBatch(firestore);
 
-  await updateDoc(currentUserRef, { followingCount: increment(1) });
-  await updateDoc(targetUserRef, { followersCount: increment(1) });
+  batch.set(followingRef, { createdAt: serverTimestamp() });
+  batch.set(followerRef, { createdAt: serverTimestamp() });
+  batch.update(currentUserRef, { followingCount: increment(1) });
+  batch.update(targetUserRef, { followersCount: increment(1) });
+  await batch.commit();
+
+  try {
+    await createActivityNotification({
+      recipientId: targetUserId,
+      actorId: currentUserId,
+      type: 'follow',
+      entityId: currentUserId,
+      preview: null,
+    });
+  } catch (error) {
+    console.warn('[follow] activity notification failed', {
+      currentUserId,
+      targetUserId,
+      error,
+    });
+  }
 }
 
 // Unfollow user
@@ -51,15 +66,15 @@ export async function unfollowUser(currentUserId: string, targetUserId: string):
 
   const followingRef = doc(firestore, USERS, currentUserId, 'following', targetUserId);
   const followerRef = doc(firestore, USERS, targetUserId, 'followers', currentUserId);
-
-  await deleteDoc(followingRef);
-  await deleteDoc(followerRef);
-
   const currentUserRef = doc(firestore, USERS, currentUserId);
   const targetUserRef = doc(firestore, USERS, targetUserId);
+  const batch = writeBatch(firestore);
 
-  await updateDoc(currentUserRef, { followingCount: increment(-1) });
-  await updateDoc(targetUserRef, { followersCount: increment(-1) });
+  batch.delete(followingRef);
+  batch.delete(followerRef);
+  batch.update(currentUserRef, { followingCount: increment(-1) });
+  batch.update(targetUserRef, { followersCount: increment(-1) });
+  await batch.commit();
 }
 
 // Toggle follow/unfollow

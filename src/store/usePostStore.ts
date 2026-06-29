@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
 import {
   createPost as createPostService,
@@ -11,6 +12,7 @@ import {
   getUserPosts as getUserPostsService,
   toggleLike as toggleLikeService,
 } from '../services/postService';
+import { readFeedCache, writeFeedCache } from '../services/feedCache';
 import type { Comment, Post } from '../types/social';
 import { useAuthStore } from './useAuthStore';
 
@@ -20,6 +22,8 @@ type PostState = {
   isRefreshing: boolean;
   isCreating: boolean;
   hasMore: boolean;
+  isOffline: boolean;
+  cacheUpdatedAt: string | null;
   error: string | null;
   lastDoc: QueryDocumentSnapshot | null;
 
@@ -29,6 +33,7 @@ type PostState = {
   createPost: (input: CreatePostInput) => Promise<string>;
   toggleLike: (postId: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
+  setOfflineStatus: (isOffline: boolean) => void;
   clearError: () => void;
 };
 
@@ -42,12 +47,58 @@ function getCurrentUserId() {
   return useAuthStore.getState().user?.id ?? null;
 }
 
+function isOfflineState(state: NetInfoState): boolean {
+  return state.isConnected !== true || state.isInternetReachable === false;
+}
+
+type FeedCacheWriteResult = {
+  cacheUpdatedAt: string | null;
+  cacheError: string | null;
+};
+
+async function persistFeedCache(userId: string, posts: Post[]): Promise<FeedCacheWriteResult> {
+  try {
+    const cacheUpdatedAt = await writeFeedCache(userId, posts);
+    return { cacheUpdatedAt, cacheError: null };
+  } catch (error) {
+    console.error('[feed-cache] write failed', { userId, error });
+    return {
+      cacheUpdatedAt: null,
+      cacheError: 'Feed berhasil dimuat, tetapi cache offline gagal diperbarui.',
+    };
+  }
+}
+
+async function loadCachedFeed(userId: string): Promise<{
+  posts: Post[];
+  cacheUpdatedAt: string | null;
+  error: string | null;
+}> {
+  const cache = await readFeedCache(userId);
+
+  if (!cache) {
+    return {
+      posts: [],
+      cacheUpdatedAt: null,
+      error: 'Tidak ada koneksi dan feed belum pernah disimpan di perangkat ini.',
+    };
+  }
+
+  return {
+    posts: cache.posts,
+    cacheUpdatedAt: cache.cachedAt,
+    error: null,
+  };
+}
+
 export const usePostStore = create<PostState>((set, get) => ({
   posts: [],
   isLoading: false,
   isRefreshing: false,
   isCreating: false,
   hasMore: true,
+  isOffline: false,
+  cacheUpdatedAt: null,
   error: null,
   lastDoc: null,
 
@@ -58,16 +109,42 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     try {
       const userId = getCurrentUserId();
-      const page = await getPosts(userId ?? undefined);
+      if (!userId) {
+        throw new Error('Feed tidak dapat dimuat karena sesi pengguna tidak tersedia.');
+      }
+
+      const networkState = await NetInfo.fetch();
+      if (isOfflineState(networkState)) {
+        const cachedFeed = await loadCachedFeed(userId);
+
+        set({
+          ...cachedFeed,
+          lastDoc: null,
+          hasMore: false,
+          isLoading: false,
+          isOffline: true,
+        });
+        return;
+      }
+
+      const page = await getPosts(userId);
+      const cacheResult = await persistFeedCache(userId, page.posts);
 
       set({
         posts: page.posts,
         lastDoc: page.lastDoc,
         hasMore: page.hasMore,
         isLoading: false,
+        isOffline: false,
+        cacheUpdatedAt: cacheResult.cacheUpdatedAt,
+        error: cacheResult.cacheError,
       });
-    } catch {
-      set({ isLoading: false, error: 'Gagal memuat feed.' });
+    } catch (error) {
+      console.error('[feed] initial load failed', { error });
+      set({
+        isLoading: false,
+        error: 'Gagal memuat feed. Periksa koneksi lalu coba lagi.',
+      });
     }
   },
 
@@ -76,22 +153,48 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     try {
       const userId = getCurrentUserId();
-      const page = await getPosts(userId ?? undefined);
+      if (!userId) {
+        throw new Error('Feed tidak dapat diperbarui karena sesi pengguna tidak tersedia.');
+      }
+
+      const networkState = await NetInfo.fetch();
+      if (isOfflineState(networkState)) {
+        const cachedFeed = await loadCachedFeed(userId);
+
+        set({
+          ...cachedFeed,
+          lastDoc: null,
+          hasMore: false,
+          isRefreshing: false,
+          isOffline: true,
+        });
+        return;
+      }
+
+      const page = await getPosts(userId);
+      const cacheResult = await persistFeedCache(userId, page.posts);
 
       set({
         posts: page.posts,
         lastDoc: page.lastDoc,
         hasMore: page.hasMore,
         isRefreshing: false,
+        isOffline: false,
+        cacheUpdatedAt: cacheResult.cacheUpdatedAt,
+        error: cacheResult.cacheError,
       });
-    } catch {
-      set({ isRefreshing: false, error: 'Gagal memuat ulang feed.' });
+    } catch (error) {
+      console.error('[feed] refresh failed', { error });
+      set({
+        isRefreshing: false,
+        error: 'Gagal memuat ulang feed. Periksa koneksi lalu coba lagi.',
+      });
     }
   },
 
   loadMorePosts: async () => {
-    const { isLoading, isRefreshing, hasMore, lastDoc } = get();
-    if (isLoading || isRefreshing || !hasMore) return;
+    const { isLoading, isRefreshing, hasMore, isOffline, lastDoc } = get();
+    if (isLoading || isRefreshing || !hasMore || isOffline) return;
 
     set({ isLoading: true });
 
@@ -105,8 +208,9 @@ export const usePostStore = create<PostState>((set, get) => ({
         hasMore: page.hasMore,
         isLoading: false,
       }));
-    } catch {
-      set({ isLoading: false, error: 'Gagal memuat post lainnya.' });
+    } catch (error) {
+      console.error('[feed] pagination failed', { error });
+      set({ isLoading: false, error: 'Gagal memuat postingan berikutnya.' });
     }
   },
 
@@ -161,7 +265,8 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     try {
       await toggleLikeService(postId, userId);
-    } catch {
+    } catch (error) {
+      console.error('[post-like] update failed', { postId, userId, error });
       set((state) => ({
         posts: state.posts.map((post) =>
           post.id === postId
@@ -188,11 +293,13 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     try {
       await deletePostService(postId, userId);
-    } catch {
+    } catch (error) {
+      console.error('[post-delete] delete failed', { postId, userId, error });
       set({ posts: original, error: 'Gagal menghapus post.' });
     }
   },
 
+  setOfflineStatus: (isOffline) => set({ isOffline }),
   clearError: () => set({ error: null }),
 }));
 

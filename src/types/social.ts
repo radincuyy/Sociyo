@@ -9,6 +9,7 @@ export type Story = {
 export type StoryGroup = {
   userId: string;
   author: string;
+  username: string;
   avatarUrl?: string | null;
   stories: Story[];
   hasUnviewed: boolean;
@@ -63,4 +64,56 @@ export type StoryDoc = {
   createdAt: unknown;
   expiresAt: unknown;
   viewedBy: string[];
+};
+
+export type ActivityNotificationType = 'follow' | 'like' | 'comment' | 'story_reply';
+
+export type ActivityNotification = {
+  id: string;
+  type: ActivityNotificationType;
+  actorId: string;
+  actorName: string;
+  actorAvatarUrl: string | null;
+  entityId: string | null;
+  preview: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export type MessageKind = 'text' | 'story_reply';
+
+export type DirectMessage = {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  kind: MessageKind;
+  text: string;
+  storyId: string | null;
+  storyImageUrl: string | null;
+  createdAt: string;
+};
+
+export type MessageParticipant = {
+  id: string;
+  displayName: string;
+  username: string;
+  avatarUrl: string | null;
+};
+
+export type MessageThread = {
+  id: string;
+  participantIds: string[];
+  otherUser: MessageParticipant;
+  lastMessage: string;
+  lastMessageAt: string;
+  lastSenderId: string;
+  unreadCount: number;
+};
+
+export type PushDeliveryStatus = 'sent' | 'not_registered' | 'failed';
+
+export type SendMessageResult = {
+  messageId: string;
+  threadId: string;
+  pushDelivery: PushDeliveryStatus;
 };

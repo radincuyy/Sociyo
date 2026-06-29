@@ -15,6 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 
 import { Screen } from '../../components/Screen';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useFollowStore } from '../../store/useFollowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { colors } from '../../theme/colors';
 import {
@@ -26,16 +28,97 @@ import {
 import type { RootStackParamList } from '../../types/navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Palette = (typeof colors)[keyof typeof colors];
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const GRID_GAP = 2;
 const NUM_COLUMNS = 3;
 const TILE_SIZE = (SCREEN_WIDTH - GRID_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
+type SearchUserCardProps = {
+  item: SearchUser;
+  palette: Palette;
+  onOpen: () => void;
+};
+
+function SearchUserCard({ item, palette, onOpen }: SearchUserCardProps) {
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const following = useFollowStore((state) => state.followMap[item.id] ?? false);
+  const pending = useFollowStore((state) => state.pendingMap[item.id] ?? false);
+  const checkFollow = useFollowStore((state) => state.checkFollow);
+  const toggleFollow = useFollowStore((state) => state.toggleFollow);
+  const initial = item.displayName.trim().slice(0, 1).toUpperCase() || '?';
+  const isCurrentUser = currentUserId === item.id;
+
+  useEffect(() => {
+    if (!isCurrentUser) {
+      void checkFollow(item.id);
+    }
+  }, [checkFollow, isCurrentUser, item.id]);
+
+  return (
+    <View style={[styles.userCard, { borderBottomColor: palette.border }]}>
+      <Pressable onPress={onOpen}>
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={styles.userAvatar} contentFit="cover" />
+        ) : (
+          <View style={[styles.userAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.userAvatarLetter, { color: palette.text }]}>{initial}</Text>
+          </View>
+        )}
+      </Pressable>
+      <Pressable onPress={onOpen} style={styles.userInfo}>
+        <Text style={[styles.userName, { color: palette.text }]} numberOfLines={1}>
+          {item.displayName}
+        </Text>
+        <Text style={[styles.userHandle, { color: palette.textMuted }]} numberOfLines={1}>
+          @{item.username}
+        </Text>
+        {item.bio ? (
+          <Text style={[styles.userBio, { color: palette.textMuted }]} numberOfLines={2}>
+            {item.bio}
+          </Text>
+        ) : null}
+        <Text style={[styles.userMeta, { color: palette.textMuted }]}>
+          {item.followersCount} pengikut · {item.postsCount} post
+        </Text>
+      </Pressable>
+      {isCurrentUser ? (
+        <Text style={[styles.selfLabel, { color: palette.textMuted }]}>Kamu</Text>
+      ) : (
+        <Pressable
+          onPress={() => {
+            void toggleFollow(item.id);
+          }}
+          disabled={pending}
+          style={({ pressed }) => [
+            styles.followButton,
+            {
+              backgroundColor: following ? palette.surfaceMuted : palette.primary,
+              borderColor: following ? palette.border : palette.primary,
+              opacity: pending ? 0.55 : pressed ? 0.78 : 1,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.followLabel,
+              { color: following ? palette.text : '#FFFFFF' },
+            ]}
+          >
+            {following ? 'Mengikuti' : 'Ikuti'}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export function SearchScreen() {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
   const nav = useNavigation<Nav>();
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const inputRef = useRef<TextInput>(null);
 
   const [searchText, setSearchText] = useState('');
@@ -84,38 +167,24 @@ export function SearchScreen() {
   }, []);
 
   const renderUserCard = useCallback(
-    ({ item }: { item: SearchUser }) => {
-      const initial = item.displayName.trim().slice(0, 1).toUpperCase() || '?';
-      return (
-        <View style={[styles.userCard, { borderBottomColor: palette.border }]}>
-          {item.avatarUrl ? (
-            <Image source={{ uri: item.avatarUrl }} style={styles.userAvatar} contentFit="cover" />
-          ) : (
-            <View style={[styles.userAvatarFallback, { backgroundColor: palette.surfaceMuted }]}>
-              <Text style={[styles.userAvatarLetter, { color: palette.text }]}>{initial}</Text>
-            </View>
-          )}
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, { color: palette.text }]} numberOfLines={1}>
-              {item.displayName}
-            </Text>
-            <Text style={[styles.userHandle, { color: palette.textMuted }]} numberOfLines={1}>
-              @{item.username}
-            </Text>
-            {item.bio ? (
-              <Text style={[styles.userBio, { color: palette.textMuted }]} numberOfLines={2}>
-                {item.bio}
-              </Text>
-            ) : null}
-          </View>
-          <View style={styles.userStats}>
-            <Text style={[styles.statNum, { color: palette.text }]}>{item.postsCount}</Text>
-            <Text style={[styles.statLabel, { color: palette.textMuted }]}>post</Text>
-          </View>
-        </View>
-      );
-    },
-    [palette],
+    ({ item }: { item: SearchUser }) => (
+      <SearchUserCard
+        item={item}
+        palette={palette}
+        onOpen={() => {
+          if (item.id === currentUserId) {
+            nav.navigate('Main', {
+              screen: 'HomeTabs',
+              params: { screen: 'Profile' },
+            });
+            return;
+          }
+
+          nav.navigate('UserProfile', { userId: item.id });
+        }}
+      />
+    ),
+    [currentUserId, nav, palette],
   );
 
   const renderGridTile = useCallback(
@@ -336,16 +405,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  userStats: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  statNum: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  statLabel: {
+  userMeta: {
+    marginTop: 4,
     fontSize: 11,
+  },
+  followButton: {
+    minWidth: 82,
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  selfLabel: {
+    minWidth: 56,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   gridRow: {

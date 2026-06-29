@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { Heart, MessageCircle, Send } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -17,16 +17,48 @@ import { useEffect, useMemo, useState } from 'react';
 import { useThemeStore } from '../store/useThemeStore';
 import { colors } from '../theme/colors';
 import type { Post } from '../types/social';
+import {
+  getPostImageTransitionTag,
+  postImageSharedTransition,
+} from '../utils/postTransition';
 
 type AnimatedPostCardProps = {
   post: Post;
   index: number;
-  onOpen: () => void;
+  onOpen: (imageAspectRatio: number) => void;
   onPhotoOpen: () => void;
+  onAvatarOpen: () => void;
   onLike?: () => void;
 };
 
-export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: AnimatedPostCardProps) {
+function buildPostShareMessage(post: Post): string {
+  const lines = [`Lihat postingan @${post.username} di Sociyo.`];
+  const caption = post.caption.trim();
+  const location = post.location?.trim();
+
+  if (caption) {
+    lines.push('', caption);
+  }
+
+  if (location) {
+    lines.push('', `Lokasi: ${location}`);
+  }
+
+  if (post.imageUrl) {
+    lines.push('', post.imageUrl);
+  }
+
+  return lines.join('\n');
+}
+
+export function AnimatedPostCard({
+  post,
+  index,
+  onOpen,
+  onPhotoOpen,
+  onAvatarOpen,
+  onLike,
+}: AnimatedPostCardProps) {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
   const appear = useSharedValue(0);
@@ -68,6 +100,25 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
     countLift.value = 0;
     countLift.value = withTiming(1, { duration: 360 });
   };
+
+  async function handleShare(): Promise<void> {
+    try {
+      await Share.share(
+        {
+          title: `Postingan @${post.username}`,
+          message: buildPostShareMessage(post),
+          url: post.imageUrl ?? undefined,
+        },
+        {
+          dialogTitle: 'Bagikan postingan Sociyo',
+          subject: `Postingan @${post.username}`,
+        },
+      );
+    } catch (error) {
+      console.warn('[post-share] failed', { postId: post.id, error });
+      Alert.alert('Gagal berbagi', 'Tidak bisa membuka menu share. Coba lagi.');
+    }
+  }
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: appear.value,
@@ -118,7 +169,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
       { }
       <View style={styles.row}>
         { }
-        <Pressable onPress={onOpen}>
+        <Pressable onPress={onAvatarOpen}>
           {post.avatarUrl ? (
             <Image source={{ uri: post.avatarUrl }} style={styles.avatar} contentFit="cover" />
           ) : (
@@ -131,20 +182,29 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
         { }
         <View style={styles.content}>
           { }
-          <Pressable onPress={onOpen} style={styles.nameRow}>
-            <Text style={[styles.username, { color: palette.text }]} numberOfLines={1}>
-              {post.username}
-            </Text>
-            <Text style={[styles.time, { color: palette.textMuted }]}>{timeAgo}</Text>
-          </Pressable>
+          <Pressable
+            onPress={() => onOpen(imgAspect)}
+            style={styles.postCopy}
+          >
+            <View style={styles.nameRow}>
+              <Text style={[styles.username, { color: palette.text }]} numberOfLines={1}>
+                {post.username}
+              </Text>
+              <Text style={[styles.time, { color: palette.textMuted }]}>{timeAgo}</Text>
+            </View>
 
-          {post.caption ? (
-            <Text style={[styles.caption, { color: palette.text }]}>{post.caption}</Text>
-          ) : null}
+            {post.caption ? (
+              <Text style={[styles.caption, { color: palette.text }]}>{post.caption}</Text>
+            ) : null}
+          </Pressable>
 
           {post.imageUrl ? (
             <GestureDetector gesture={imageGesture}>
-              <Animated.View style={styles.imageWrap}>
+              <Animated.View
+                sharedTransitionTag={getPostImageTransitionTag(post.id)}
+                sharedTransitionStyle={postImageSharedTransition}
+                style={styles.imageWrap}
+              >
                 <Image
                   source={{ uri: post.imageUrl }}
                   style={[styles.image, { borderColor: palette.border, aspectRatio: imgAspect }]}
@@ -182,7 +242,7 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
               )}
             </Pressable>
 
-            <Pressable onPress={onOpen} style={styles.actionBtn}>
+            <Pressable onPress={() => onOpen(imgAspect)} style={styles.actionBtn}>
               <MessageCircle size={20} color={palette.text} />
               {post.comments > 0 && (
                 <Text style={[styles.actionCount, { color: palette.textMuted }]}>
@@ -192,7 +252,13 @@ export function AnimatedPostCard({ post, index, onOpen, onPhotoOpen, onLike }: A
             </Pressable>
 
 
-            <Pressable style={styles.actionBtn}>
+            <Pressable
+              onPress={() => {
+                void handleShare();
+              }}
+              style={styles.actionBtn}
+              hitSlop={8}
+            >
               <Send size={20} color={palette.text} />
             </Pressable>
           </View>
@@ -235,6 +301,9 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
+    gap: 4,
+  },
+  postCopy: {
     gap: 4,
   },
   nameRow: {

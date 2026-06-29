@@ -1,9 +1,11 @@
 import {
+  createNavigationContainerRef,
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
   type Theme,
 } from '@react-navigation/native';
+import * as ExpoNotifications from 'expo-notifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   DrawerContentScrollView,
@@ -13,12 +15,20 @@ import {
 } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, ListVideo, LogOut, MessageCircle, PlusCircle, Search, Settings } from 'lucide-react-native';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { Avatar } from '../components/Avatar';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNotificationStore } from '../store/useNotificationStore';
+import { useMessageStore } from '../store/useMessageStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { configureNotificationChannels } from '../services/notificationService';
 import { colors } from '../theme/colors';
 import type {
   AuthStackParamList,
@@ -31,13 +41,17 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { FeedScreen } from '../screens/feed/FeedScreen';
 import { MessagesScreen } from '../screens/messages/MessagesScreen';
+import { MessageThreadScreen } from '../screens/messages/MessageThreadScreen';
 import { SearchScreen } from '../screens/search/SearchScreen';
 import { CreatePostScreen } from '../screens/create/CreatePostScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { UserProfileScreen } from '../screens/profile/UserProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { AnimationCatalogScreen } from '../screens/catalog/AnimationCatalogScreen';
 import { PostDetailScreen } from '../screens/feed/PostDetailScreen';
+import { CreateStoryScreen } from '../screens/story/CreateStoryScreen';
 import { StoryViewerScreen } from '../screens/story/StoryViewerScreen';
 import { PhotoViewerScreen } from '../screens/media/PhotoViewerScreen';
 
@@ -45,6 +59,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const drawerItems = [
   { name: 'HomeTabs', label: 'Sociyo', Icon: Home },
@@ -83,6 +98,40 @@ function AuthNavigator() {
 function MainTabs() {
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const subscribeToActivities = useNotificationStore(
+    (state) => state.subscribeToActivities,
+  );
+  const resetNotificationSession = useNotificationStore(
+    (state) => state.resetSession,
+  );
+  const subscribeThreads = useMessageStore((state) => state.subscribeThreads);
+  const resetMessages = useMessageStore((state) => state.reset);
+  const totalUnreadMessages = useMessageStore((state) => state.totalUnread);
+
+  useEffect(() => {
+    if (!userId) {
+      resetNotificationSession();
+      resetMessages();
+      return;
+    }
+
+    const unsubscribeActivities = subscribeToActivities(userId);
+    const unsubscribeThreads = subscribeThreads(userId);
+
+    return () => {
+      unsubscribeActivities();
+      unsubscribeThreads();
+      resetNotificationSession();
+      resetMessages();
+    };
+  }, [
+    resetMessages,
+    resetNotificationSession,
+    subscribeThreads,
+    subscribeToActivities,
+    userId,
+  ]);
 
   return (
     <Tab.Navigator
@@ -102,11 +151,31 @@ function MainTabs() {
         },
         tabBarIcon: ({ color, focused, size }) => {
           const iconSize = Math.max(size, 21);
-          if (route.name === 'Feed') return <Home size={iconSize} color={color} />;
-          if (route.name === 'Messages') return <MessageCircle size={iconSize} color={color} />;
-          if (route.name === 'Create') return <PlusCircle size={iconSize + 2} color={color} />;
-          if (route.name === 'Search') return <Search size={iconSize} color={color} />;
-          return <ProfileTabIcon focused={focused} size={iconSize} />;
+          let icon: ReactNode;
+
+          if (route.name === 'Feed') {
+            icon = <Home size={iconSize} color={color} />;
+          } else if (route.name === 'Messages') {
+            icon = <MessageCircle size={iconSize} color={color} />;
+          } else if (route.name === 'Create') {
+            icon = <PlusCircle size={iconSize + 2} color={color} />;
+          } else if (route.name === 'Search') {
+            icon = <Search size={iconSize} color={color} />;
+          } else {
+            icon = <ProfileTabIcon focused={focused} size={iconSize} />;
+          }
+
+          return (
+            <AnimatedTabIcon
+              focused={focused}
+              badgeColor={palette.accent}
+              badgeCount={
+                route.name === 'Messages' ? totalUnreadMessages : 0
+              }
+            >
+              {icon}
+            </AnimatedTabIcon>
+          );
         },
       })}
     >
@@ -116,6 +185,50 @@ function MainTabs() {
       <Tab.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
+  );
+}
+
+type AnimatedTabIconProps = {
+  focused: boolean;
+  badgeColor: string;
+  badgeCount: number;
+  children: ReactNode;
+};
+
+function AnimatedTabIcon({
+  focused,
+  badgeColor,
+  badgeCount,
+  children,
+}: AnimatedTabIconProps) {
+  const activeProgress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    activeProgress.value = withSpring(focused ? 1 : 0, {
+      damping: 14,
+      stiffness: 210,
+      mass: 0.7,
+    });
+  }, [activeProgress, focused]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: activeProgress.value * -2 },
+      { scale: 1 + activeProgress.value * 0.14 },
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.animatedTabIcon, iconStyle]}>
+      {children}
+      {badgeCount > 0 ? (
+        <View style={[styles.messageBadge, { backgroundColor: badgeColor }]}>
+          <Text style={styles.messageBadgeText}>
+            {badgeCount > 99 ? '99+' : badgeCount}
+          </Text>
+        </View>
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -254,6 +367,70 @@ export function AppNavigator() {
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const mode = useThemeStore((state) => state.mode);
   const palette = colors[mode];
+  const [navigationReady, setNavigationReady] = useState(false);
+  const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void configureNotificationChannels().catch((error: unknown) => {
+      console.warn('[notifications] channel setup failed', { error });
+    });
+  }, []);
+
+  useEffect(() => {
+    function captureMessageThread(
+      response: ExpoNotifications.NotificationResponse | null,
+    ) {
+      const data = response?.notification.request.content.data;
+      const threadId =
+        data && typeof data.threadId === 'string' ? data.threadId : null;
+      const screen =
+        data && typeof data.screen === 'string' ? data.screen : null;
+
+      if (screen === 'MessageThread' && threadId) {
+        setPendingThreadId(threadId);
+      }
+    }
+
+    const subscription =
+      ExpoNotifications.addNotificationResponseReceivedListener(
+        captureMessageThread,
+      );
+
+    void ExpoNotifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        captureMessageThread(response);
+        if (response) {
+          void ExpoNotifications.clearLastNotificationResponseAsync().catch(
+            (error: unknown) => {
+              console.warn('[notifications] clear response failed', { error });
+            },
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn('[notifications] last response read failed', { error });
+      });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !navigationReady ||
+      !pendingThreadId ||
+      !navigationRef.isReady()
+    ) {
+      return;
+    }
+
+    navigationRef.navigate('MessageThread', {
+      threadId: pendingThreadId,
+    });
+    setPendingThreadId(null);
+  }, [isAuthenticated, navigationReady, pendingThreadId]);
 
   const navigationTheme: Theme = useMemo(
     () => ({
@@ -272,7 +449,11 @@ export function AppNavigator() {
   );
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      onReady={() => setNavigationReady(true)}
+    >
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isInitializing ? (
           <RootStack.Screen name="Boot" component={BootScreen} />
@@ -280,6 +461,10 @@ export function AppNavigator() {
           <>
             <RootStack.Screen name="Main" component={MainDrawer} />
             <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+            <RootStack.Screen name="CreateStory" component={CreateStoryScreen} />
+            <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
+            <RootStack.Screen name="UserProfile" component={UserProfileScreen} />
+            <RootStack.Screen name="MessageThread" component={MessageThreadScreen} />
             <RootStack.Screen name="PostDetail" component={PostDetailScreen} />
             <RootStack.Screen name="StoryViewer" component={StoryViewerScreen} />
             <RootStack.Screen name="PhotoViewer" component={PhotoViewerScreen} />
@@ -318,6 +503,29 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 18,
     padding: 1,
+  },
+  animatedTabIcon: {
+    width: 36,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
   },
   drawerContent: {
     flex: 1,

@@ -15,6 +15,7 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 
 import { firestore, firebaseStorage } from './firebase';
+import { sendStoryReplyMessage } from './messageService';
 import type { Story, StoryGroup, StoryDoc } from '../types/social';
 
 const STORIES_COLLECTION = 'stories';
@@ -39,10 +40,15 @@ async function getAuthorInfo(authorId: string) {
 
     return {
       author: getStringField(data, 'displayName', 'Pengguna'),
+      username: getStringField(data, 'username', authorId.slice(0, 8)),
       avatarUrl: getStringField(data, 'avatarUrl') || null,
     };
   } catch {
-    return { author: 'Pengguna', avatarUrl: null };
+    return {
+      author: 'Pengguna',
+      username: authorId.slice(0, 8),
+      avatarUrl: null,
+    };
   }
 }
 
@@ -152,6 +158,7 @@ export async function getStoryGroups(currentUserId?: string): Promise<StoryGroup
     groups.push({
       userId: authorId,
       author: authorInfo.author,
+      username: authorInfo.username,
       avatarUrl: authorInfo.avatarUrl || null,
       stories,
       hasUnviewed,
@@ -165,4 +172,39 @@ export async function getStoryGroups(currentUserId?: string): Promise<StoryGroup
 export async function markStoryViewed(storyId: string, userId: string): Promise<void> {
   const storyRef = doc(firestore, STORIES_COLLECTION, storyId);
   await updateDoc(storyRef, { viewedBy: arrayUnion(userId) });
+}
+
+type SendStoryReplyInput = {
+  storyId: string;
+  storyImageUrl: string | null;
+  authorId: string;
+  recipientId: string;
+  text: string;
+};
+
+export async function sendStoryReply(input: SendStoryReplyInput) {
+  const cleanText = input.text.trim();
+
+  if (!cleanText) {
+    throw new Error('Balasan story tidak boleh kosong.');
+  }
+
+  if (input.authorId === input.recipientId) {
+    throw new Error('Tidak dapat membalas story milik sendiri.');
+  }
+
+  const storyRef = doc(firestore, STORIES_COLLECTION, input.storyId);
+  const storySnapshot = await getDoc(storyRef);
+
+  if (!storySnapshot.exists()) {
+    throw new Error(`Story ${input.storyId} tidak ditemukan.`);
+  }
+
+  return sendStoryReplyMessage({
+    storyId: input.storyId,
+    storyImageUrl: input.storyImageUrl,
+    senderId: input.authorId,
+    recipientId: input.recipientId,
+    text: cleanText,
+  });
 }

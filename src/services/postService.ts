@@ -10,10 +10,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   startAfter,
   updateDoc,
   where,
+  writeBatch,
   type DocumentSnapshot,
   type QueryDocumentSnapshot,
   type QueryConstraint,
@@ -26,6 +26,7 @@ import {
 } from 'firebase/storage';
 
 import { firestore, firebaseStorage } from './firebase';
+import { createActivityNotification } from './activityService';
 import type { Comment, Post } from '../types/social';
 
 const POSTS_COLLECTION = 'posts';
@@ -264,19 +265,46 @@ export async function deletePost(postId: string, authorId: string) {
 
 export async function toggleLike(postId: string, userId: string): Promise<boolean> {
   const likeRef = doc(firestore, POSTS_COLLECTION, postId, 'likes', userId);
-  const likeSnap = await getDoc(likeRef);
   const postRef = doc(firestore, POSTS_COLLECTION, postId);
+  const [likeSnap, postSnap] = await Promise.all([getDoc(likeRef), getDoc(postRef)]);
+
+  if (!postSnap.exists()) {
+    throw new Error(`Post ${postId} tidak ditemukan.`);
+  }
 
   if (likeSnap.exists()) {
-    // Unlike
-    await deleteDoc(likeRef);
-    await updateDoc(postRef, { likesCount: increment(-1) });
+    const batch = writeBatch(firestore);
+    batch.delete(likeRef);
+    batch.update(postRef, { likesCount: increment(-1) });
+    await batch.commit();
     return false;
   }
 
-  // Like
-  await setDoc(likeRef, { createdAt: serverTimestamp() });
-  await updateDoc(postRef, { likesCount: increment(1) });
+  const batch = writeBatch(firestore);
+  batch.set(likeRef, { createdAt: serverTimestamp() });
+  batch.update(postRef, { likesCount: increment(1) });
+  await batch.commit();
+
+  const postData = postSnap.data() as Record<string, unknown>;
+  const recipientId = getStringField(postData, 'authorId');
+
+  try {
+    await createActivityNotification({
+      recipientId,
+      actorId: userId,
+      type: 'like',
+      entityId: postId,
+      preview: getStringField(postData, 'caption') || null,
+    });
+  } catch (error) {
+    console.warn('[post-like] activity notification failed', {
+      postId,
+      userId,
+      recipientId,
+      error,
+    });
+  }
+
   return true;
 }
 
@@ -290,6 +318,12 @@ type AddCommentInput = {
 
 export async function addComment({ postId, authorId, text }: AddCommentInput): Promise<string> {
   const commentsRef = collection(firestore, POSTS_COLLECTION, postId, 'comments');
+  const postRef = doc(firestore, POSTS_COLLECTION, postId);
+  const postSnapshot = await getDoc(postRef);
+
+  if (!postSnapshot.exists()) {
+    throw new Error(`Post ${postId} tidak ditemukan.`);
+  }
 
   const commentDoc = await addDoc(commentsRef, {
     authorId,
@@ -297,8 +331,27 @@ export async function addComment({ postId, authorId, text }: AddCommentInput): P
     createdAt: serverTimestamp(),
   });
 
-  const postRef = doc(firestore, POSTS_COLLECTION, postId);
   await updateDoc(postRef, { commentsCount: increment(1) });
+
+  const postData = postSnapshot.data() as Record<string, unknown>;
+  const recipientId = getStringField(postData, 'authorId');
+
+  try {
+    await createActivityNotification({
+      recipientId,
+      actorId: authorId,
+      type: 'comment',
+      entityId: postId,
+      preview: text.trim(),
+    });
+  } catch (error) {
+    console.warn('[post-comment] activity notification failed', {
+      postId,
+      authorId,
+      recipientId,
+      error,
+    });
+  }
 
   return commentDoc.id;
 }

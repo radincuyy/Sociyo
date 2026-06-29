@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.radincuyy.sociyo",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,7 +27,14 @@
     },
     "plugins": [
       "expo-image",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "733cfdbe-189b-4f97-8519-319d0d3ee281"
+      }
+    },
+    "owner": "radincuyy"
   }
 }
