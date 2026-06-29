@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronLeft, Send } from 'lucide-react-native';
+import { ChevronLeft, ImagePlus, Send, X } from 'lucide-react-native';
 import { useCallback, type ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -162,11 +163,13 @@ export function MessageThreadScreen({
   );
   const loadThread = useMessageStore((state) => state.loadThread);
   const sendMessage = useMessageStore((state) => state.sendMessage);
+  const sendImageMsg = useMessageStore((state) => state.sendImageMessage);
   const markThreadRead = useMessageStore((state) => state.markThreadRead);
   const [thread, setThread] = useState<MessageThread | null>(
     storedThread ?? null,
   );
   const [text, setText] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const listRef = useRef<FlatList<DirectMessage>>(null);
   const keyboard = useAnimatedKeyboard();
   const messageListKeyboardStyle = useAnimatedStyle(() => ({
@@ -282,19 +285,32 @@ export function MessageThreadScreen({
   ]);
 
   async function handleSend() {
-    const cleanText = text.trim();
-
-    if (!thread || !cleanText || sending) {
+    if (!thread || sending) {
       return;
     }
 
     try {
-      const result = await sendMessage(
-        thread.id,
-        thread.otherUser.id,
-        cleanText,
-      );
-      setText('');
+      let result;
+
+      if (imagePreview) {
+        result = await sendImageMsg(
+          thread.id,
+          thread.otherUser.id,
+          imagePreview,
+          text.trim() || undefined,
+        );
+        setImagePreview(null);
+        setText('');
+      } else {
+        const cleanText = text.trim();
+        if (!cleanText) return;
+        result = await sendMessage(
+          thread.id,
+          thread.otherUser.id,
+          cleanText,
+        );
+        setText('');
+      }
 
       if (result.pushDelivery === 'not_registered') {
         Alert.alert(
@@ -309,6 +325,33 @@ export function MessageThreadScreen({
       }
     } catch {
       return;
+    }
+  }
+
+  async function handlePickImage() {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      Alert.alert(
+        'Izin diperlukan',
+        'Izinkan akses galeri untuk mengirim gambar.',
+      );
+      return;
+    }
+
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: false,
+    });
+
+    if (
+      !pickerResult.canceled &&
+      pickerResult.assets &&
+      pickerResult.assets.length > 0
+    ) {
+      setImagePreview(pickerResult.assets[0].uri);
     }
   }
 
@@ -421,17 +464,43 @@ export function MessageThreadScreen({
               </View>
             ) : null}
 
-            <BubbleSurface isMine={isMine} palette={palette}>
-              <Text
-                selectable
-                style={[
-                  styles.messageText,
-                  { color: isMine ? '#FFFFFF' : palette.text },
-                ]}
+            {item.kind === 'image' && item.imageUrl ? (
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('PhotoViewer', {
+                    imageUrl: item.imageUrl!,
+                    alt: 'Foto pesan',
+                  })
+                }
               >
-                {item.text}
-              </Text>
-            </BubbleSurface>
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={[
+                    styles.imageBubble,
+                    {
+                      width: Math.min(220, screenWidth * 0.55),
+                      backgroundColor: palette.surfaceMuted,
+                      borderColor: isMine ? 'transparent' : palette.border,
+                    },
+                  ]}
+                  contentFit="cover"
+                />
+              </Pressable>
+            ) : null}
+
+            {(item.kind !== 'image' || item.text) ? (
+              <BubbleSurface isMine={isMine} palette={palette}>
+                <Text
+                  selectable
+                  style={[
+                    styles.messageText,
+                    { color: isMine ? '#FFFFFF' : palette.text },
+                  ]}
+                >
+                  {item.text}
+                </Text>
+              </BubbleSurface>
+            ) : null}
 
             <Text
               style={[
@@ -536,7 +605,7 @@ export function MessageThreadScreen({
 
         <Animated.View
           style={[
-            styles.composer,
+            styles.composerWrapper,
             {
               backgroundColor: palette.surface,
               borderTopColor: palette.border,
@@ -544,47 +613,88 @@ export function MessageThreadScreen({
             composerKeyboardStyle,
           ]}
         >
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            editable={!sending && Boolean(thread)}
-            multiline
-            maxLength={1000}
-            placeholder="Tulis pesan..."
-            placeholderTextColor={palette.textMuted}
-            style={[
-              styles.input,
-              {
-                color: palette.text,
-                backgroundColor: palette.background,
-                borderColor: palette.border,
-              },
-            ]}
-          />
-          <Pressable
-            onPress={() => {
-              void handleSend();
-            }}
-            disabled={!text.trim() || sending || !thread}
-            style={({ pressed }) => [
-              styles.sendButton,
-              {
-                backgroundColor: palette.primary,
-                opacity:
-                  !text.trim() || sending || !thread
-                    ? 0.42
-                    : pressed
-                      ? 0.75
-                      : 1,
-              },
-            ]}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Send size={18} color="#FFFFFF" />
-            )}
-          </Pressable>
+          {imagePreview ? (
+            <View
+              style={[
+                styles.imagePreviewStrip,
+                { borderBottomColor: palette.border },
+              ]}
+            >
+              <Image
+                source={{ uri: imagePreview }}
+                style={styles.imagePreviewThumb}
+                contentFit="cover"
+              />
+              <Pressable
+                onPress={() => setImagePreview(null)}
+                style={[
+                  styles.imagePreviewCancel,
+                  { backgroundColor: palette.surfaceMuted },
+                ]}
+              >
+                <X size={14} color={palette.text} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View style={styles.composer}>
+            <Pressable
+              onPress={() => {
+                void handlePickImage();
+              }}
+              disabled={sending}
+              style={({ pressed }) => [
+                styles.imagePickerButton,
+                {
+                  opacity: sending ? 0.4 : pressed ? 0.6 : 1,
+                },
+              ]}
+            >
+              <ImagePlus size={22} color={palette.primary} />
+            </Pressable>
+
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              editable={!sending && Boolean(thread)}
+              multiline
+              maxLength={1000}
+              placeholder={imagePreview ? 'Tambahkan caption...' : 'Tulis pesan...'}
+              placeholderTextColor={palette.textMuted}
+              style={[
+                styles.input,
+                {
+                  color: palette.text,
+                  backgroundColor: palette.background,
+                  borderColor: palette.border,
+                },
+              ]}
+            />
+            <Pressable
+              onPress={() => {
+                void handleSend();
+              }}
+              disabled={(!text.trim() && !imagePreview) || sending || !thread}
+              style={({ pressed }) => [
+                styles.sendButton,
+                {
+                  backgroundColor: palette.primary,
+                  opacity:
+                    (!text.trim() && !imagePreview) || sending || !thread
+                      ? 0.42
+                      : pressed
+                        ? 0.75
+                        : 1,
+                },
+              ]}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Send size={18} color="#FFFFFF" />
+              )}
+            </Pressable>
+          </View>
         </Animated.View>
       </View>
     </Screen>
@@ -755,18 +865,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  composer: {
+  composerWrapper: {
     position: 'absolute',
     right: 0,
     bottom: 0,
     left: 0,
+    borderTopWidth: 1,
+  },
+  composer: {
     minHeight: 62,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    borderTopWidth: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 9,
+  },
+  imagePickerButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -785,5 +903,33 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  imagePreviewStrip: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  imagePreviewThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+  },
+  imagePreviewCancel: {
+    width: 22,
+    height: 22,
+    marginLeft: -11,
+    marginTop: -6,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageBubble: {
+    aspectRatio: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
 });

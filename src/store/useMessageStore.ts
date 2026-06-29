@@ -4,6 +4,7 @@ import {
   getMessageThread,
   markThreadRead as markThreadReadService,
   sendTextMessage,
+  sendImageMessage as sendImageMessageService,
   subscribeMessages as subscribeMessagesService,
   subscribeMessageThreads,
 } from '../services/messageService';
@@ -29,6 +30,12 @@ type MessageState = {
     threadId: string,
     recipientId: string,
     text: string,
+  ) => Promise<SendMessageResult>;
+  sendImageMessage: (
+    threadId: string,
+    recipientId: string,
+    imageUri: string,
+    caption?: string,
   ) => Promise<SendMessageResult>;
   markThreadRead: (threadId: string) => Promise<void>;
   clearError: () => void;
@@ -140,6 +147,39 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         sending: false,
         error:
           error instanceof Error ? error.message : 'Gagal mengirim pesan.',
+      });
+      throw error;
+    }
+  },
+
+  sendImageMessage: async (threadId, recipientId, imageUri, caption) => {
+    if (get().sending) {
+      throw new Error('Pesan sebelumnya masih dikirim.');
+    }
+
+    set({ sending: true, error: null });
+
+    try {
+      const result = await sendImageMessageService({
+        senderId: getCurrentUserId(),
+        recipientId,
+        imageUri,
+        caption,
+      });
+
+      if (result.threadId !== threadId) {
+        throw new Error(
+          `Thread hasil ${result.threadId} tidak cocok dengan ${threadId}.`,
+        );
+      }
+
+      set({ sending: false });
+      return result;
+    } catch (error) {
+      set({
+        sending: false,
+        error:
+          error instanceof Error ? error.message : 'Gagal mengirim gambar.',
       });
       throw error;
     }
