@@ -11,10 +11,32 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBGywfGk-MwVKN2Wk3JqcrJvIW_po2ry1M",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "sociyo-8b7c9.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "sociyo-8b7c9",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "sociyo-8b7c9.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "916372135949",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:916372135949:web:753a72d0b2fe9bde2e3544",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "916372135949-5jirpb94h42rc8r17outbpg1915ji5ra.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "916372135949-ll19r8k7r8dmajfcjvn3cgiegqob49f6.apps.googleusercontent.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "733cfdbe-189b-4f97-8519-319d0d3ee281"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBGywfGk-MwVKN2Wk3JqcrJvIW_po2ry1M",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "sociyo-8b7c9.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "sociyo-8b7c9",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "sociyo-8b7c9.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "916372135949",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:916372135949:web:753a72d0b2fe9bde2e3544",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "916372135949-5jirpb94h42rc8r17outbpg1915ji5ra.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "916372135949-ll19r8k7r8dmajfcjvn3cgiegqob49f6.apps.googleusercontent.com",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "733cfdbe-189b-4f97-8519-319d0d3ee281"
+      }
     }
   }
 }
