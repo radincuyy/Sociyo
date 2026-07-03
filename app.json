@@ -27,6 +27,7 @@
     },
     "plugins": [
       "expo-image",
+      "expo-image-picker",
       "expo-secure-store",
       "expo-notifications"
     ],
