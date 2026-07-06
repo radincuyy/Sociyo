@@ -261,10 +261,10 @@ Katalog lengkap semua animasi: [`docs/animation-catalog.md`](docs/animation-cata
 
 | Nama | NIM | Peran |
 | --- | --- | --- |
-| — | — | Project Manager, Auth, Firebase, Architecture |
-| — | — | UI/UX Designer, Frontend Auth/Feed/Profile/Story |
-| — | — | Frontend Developer, Navigation, Post Detail, Search |
-| — | — | Backend Integrator, QA, Firestore, Testing, Docs |
+| Radinka Alifasya Dinova | 2410501073 | Project Manager, Full-Stack Developer, Auth, Firebase, Architecture |
+| Muhammad Ragil Hardika | 2410501103 | UI/UX Designer, Frontend Auth/Feed/Profile/Story |
+| Rheyvana Nasya Dzanuard | 2410501133 | Frontend Developer, Documentation, System Analyst |
+| Novry Nanda Kurnia Putra | 2410501123 | Backend Integrator, QA, Firestore, Testing, Docs |
 
 ---
 
